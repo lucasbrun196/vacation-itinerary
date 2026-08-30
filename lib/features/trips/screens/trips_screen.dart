@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/providers.dart';
+import '../../../app/router.dart';
 import '../../../core/extensions/context_ext.dart';
 import '../../../core/responsive/responsive.dart';
 import '../../../core/theme/app_colors.dart';
@@ -247,7 +248,9 @@ class _AccountButton extends ConsumerWidget {
       offset: const Offset(0, 48),
       shape: const RoundedRectangleBorder(borderRadius: Radii.brMd),
       onSelected: (value) async {
-        if (value == 'sair') {
+        if (value == 'conta') {
+          context.push(Routes.account);
+        } else if (value == 'sair') {
           await ref.read(authServiceProvider).signOut();
         }
       },
@@ -264,6 +267,16 @@ class _AccountButton extends ConsumerWidget {
           ),
         ),
         const PopupMenuDivider(),
+        const PopupMenuItem(
+          value: 'conta',
+          child: Row(
+            children: [
+              Icon(Icons.manage_accounts_outlined, size: 18),
+              SizedBox(width: Gap.md),
+              Text('Minha conta'),
+            ],
+          ),
+        ),
         const PopupMenuItem(
           value: 'sair',
           child: Row(
