@@ -418,13 +418,17 @@ class _PaidShareTile extends StatelessWidget {
                       : 'Parcela ${share.installmentNumber}',
                   style: context.text.titleSmall,
                 ),
-                Row(
+                // A faixa útil aqui é de ~140px depois do ícone, do botão de
+                // comprovante e do "Desfazer": os dois textos não cabem lado
+                // a lado, então quebram em vez de estourar.
+                Wrap(
+                  spacing: Gap.sm,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     if (share.paidAt != null)
                       Text('pago em ${Fmt.dateShort(share.paidAt!)}',
                           style: context.text.bodySmall),
-                    if (share.isEarly) ...[
-                      Gap.hSm,
+                    if (share.isEarly)
                       Text(
                         'adiantado',
                         style: context.text.labelSmall?.copyWith(
@@ -432,7 +436,6 @@ class _PaidShareTile extends StatelessWidget {
                           fontWeight: FontWeight.w700,
                         ),
                       ),
-                    ],
                   ],
                 ),
               ],

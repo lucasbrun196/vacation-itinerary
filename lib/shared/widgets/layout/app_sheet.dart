@@ -91,10 +91,20 @@ class _SheetBody extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(title, style: context.text.headlineSmall),
+                    Text(
+                      title,
+                      style: context.text.headlineSmall,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                     if (subtitle != null) ...[
                       Gap.vXs,
-                      Text(subtitle!, style: context.text.bodySmall),
+                      Text(
+                        subtitle!,
+                        style: context.text.bodySmall,
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ],
                   ],
                 ),
@@ -135,54 +145,64 @@ class SheetActions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final secondary = secondaryLabel == null
+        ? null
+        : OutlinedButton(
+            // O padding do tema é generoso para botões soltos; aqui
+            // o botão é estreito e a palavra quebrava em duas linhas.
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: Gap.md),
+            ),
+            onPressed: isLoading ? null : onSecondary,
+            child: Text(
+              secondaryLabel!,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          );
+
+    final primary = FilledButton(
+      style: FilledButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: Gap.md),
+        backgroundColor: destructive ? context.colors.error : null,
+      ),
+      onPressed: isLoading ? null : onPrimary,
+      child: isLoading
+          ? const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2.4, color: Colors.white),
+            )
+          : Text(
+              primaryLabel,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+    );
+
     return Container(
       padding: const EdgeInsets.fromLTRB(Gap.xl, Gap.md, Gap.xl, Gap.xl),
       decoration: BoxDecoration(
         color: context.colors.surface,
         border: Border(top: BorderSide(color: context.colors.outline)),
       ),
-      child: Row(
-        children: [
-          if (secondaryLabel != null)
-            Expanded(
-              child: OutlinedButton(
-                // O padding do tema é generoso para botões soltos; aqui
-                // o botão é estreito e a palavra quebrava em duas linhas.
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: Gap.md),
-                ),
-                onPressed: isLoading ? null : onSecondary,
-                child: Text(
-                  secondaryLabel!,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
+      // Lado a lado em 320px o botão secundário fica com ~60px e "Cancelar"
+      // vira "Cancela…". Em tela estreita eles empilham, o primário em cima.
+      child: context.isNarrow && secondary != null
+          ? Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [primary, Gap.vSm, secondary],
+            )
+          : Row(
+              children: [
+                if (secondary != null) ...[
+                  Expanded(child: secondary),
+                  Gap.hMd,
+                ],
+                Expanded(flex: 2, child: primary),
+              ],
             ),
-          if (secondaryLabel != null) Gap.hMd,
-          Expanded(
-            flex: 2,
-            child: FilledButton(
-              style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: Gap.md),
-                backgroundColor: destructive ? context.colors.error : null,
-              ),
-              onPressed: isLoading ? null : onPrimary,
-              child: isLoading
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2.4, color: Colors.white),
-                    )
-                  : Text(
-                      primaryLabel,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

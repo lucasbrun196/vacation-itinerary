@@ -313,23 +313,21 @@ class _MemberTile extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Row(
+                // `Wrap`: com as duas tags na mesma linha o nome ficava com
+                // ~65px e virava "Lu…". Aqui elas descem quando não cabem.
+                Wrap(
+                  spacing: Gap.sm,
+                  runSpacing: Gap.xs,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
-                    Flexible(
-                      child: Text(
-                        member.name,
-                        style: context.text.titleSmall,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                    Text(
+                      member.name,
+                      style: context.text.titleSmall,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    if (member.isAdmin) ...[
-                      Gap.hSm,
-                      _Tag(label: 'admin', color: AppColors.turquoise),
-                    ],
-                    if (isMe) ...[
-                      Gap.hXs,
-                      _Tag(label: 'você', color: AppColors.coral),
-                    ],
+                    if (member.isAdmin) _Tag(label: 'admin', color: AppColors.turquoise),
+                    if (isMe) _Tag(label: 'você', color: AppColors.coral),
                   ],
                 ),
                 Text(
