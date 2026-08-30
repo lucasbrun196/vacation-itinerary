@@ -42,7 +42,8 @@ class MapPickerSheet extends ConsumerStatefulWidget {
   ConsumerState<MapPickerSheet> createState() => _MapPickerSheetState();
 }
 
-class _MapPickerSheetState extends ConsumerState<MapPickerSheet> {
+class _MapPickerSheetState extends ConsumerState<MapPickerSheet>
+    with SingleTickerProviderStateMixin {
   final _mapController = MapController();
   final _searchController = TextEditingController();
   final _nameController = TextEditingController();
@@ -62,19 +63,41 @@ class _MapPickerSheetState extends ConsumerState<MapPickerSheet> {
   bool _searching = false;
   bool _resolving = false;
 
+  /// Anima o zoom dos botões. Sem isso o mapa salta de um nível para o
+  /// outro e a pessoa perde a referência de onde estava.
+  late final AnimationController _zoomAnimation;
+  Animation<double>? _zoomTween;
+
   @override
   void initState() {
     super.initState();
+    _zoomAnimation = AnimationController(vsync: this, duration: Motion.normal)
+      ..addListener(_applyZoomFrame);
+
     final initial = widget.initial;
     if (initial != null) {
       _point = LatLng(initial.lat, initial.lng);
       _address = initial.address;
       _nameController.text = initial.name;
     }
+
+    // Onde a câmera abre. Calculado uma vez e guardado: o `MapOptions`
+    // leva `initialCenter`/`initialZoom`, e passar valores novos a cada
+    // rebuild faz o `FlutterMap` reiniciar a câmera — o mapa voltava
+    // sozinho para o zoom de abertura assim que qualquer coisa na tela
+    // mudava.
+    _startCenter = _resolveStartCenter();
+    _startZoom = _point != null || _hasItemWithCoords
+        ? MapConfig.pinZoom
+        : MapConfig.fallbackZoom;
   }
+
+  late final LatLng _startCenter;
+  late final double _startZoom;
 
   @override
   void dispose() {
+    _zoomAnimation.dispose();
     _searchTimer?.cancel();
     _searchController.dispose();
     _nameController.dispose();
@@ -84,25 +107,51 @@ class _MapPickerSheetState extends ConsumerState<MapPickerSheet> {
 
   /// Onde o mapa abre: o ponto já escolhido, senão a última atividade do
   /// roteiro que tenha coordenada, senão o Brasil inteiro.
-  LatLng get _initialCenter {
+  LatLng _resolveStartCenter() {
     final point = _point;
     if (point != null) return point;
 
-    final items = ref.read(itineraryProvider).valueOrNull ?? const <ItineraryItem>[];
-    for (final item in items.reversed) {
+    for (final item in _itineraryItems.reversed) {
       if (item.hasCoords) return LatLng(item.lat!, item.lng!);
     }
     return const LatLng(MapConfig.fallbackLat, MapConfig.fallbackLng);
   }
 
-  double get _initialZoom =>
-      _point != null || _hasNearbyItem ? MapConfig.pinZoom : MapConfig.fallbackZoom;
+  bool get _hasItemWithCoords => _itineraryItems.any((i) => i.hasCoords);
 
-  bool get _hasNearbyItem =>
-      (ref.read(itineraryProvider).valueOrNull ?? const <ItineraryItem>[])
-          .any((i) => i.hasCoords);
+  List<ItineraryItem> get _itineraryItems =>
+      ref.read(itineraryProvider).valueOrNull ?? const <ItineraryItem>[];
 
   bool get _canConfirm => _point != null && _nameController.text.trim().isNotEmpty;
+
+  void _applyZoomFrame() {
+    final tween = _zoomTween;
+    if (tween == null) return;
+    _mapController.move(_mapController.camera.center, tween.value);
+  }
+
+  /// Aproxima ou afasta um nível, sem sair dos limites do mapa.
+  ///
+  /// O caminho até o nível novo é animado: além de ficar mais agradável,
+  /// a câmera passa por valores contínuos, como num gesto de pinça, em
+  /// vez de saltar de uma vez.
+  void _zoomBy(double delta) {
+    final camera = _mapController.camera;
+    final target = (camera.zoom + delta).clamp(_minZoom, _maxZoom);
+    if (target == camera.zoom) return;
+
+    if (context.reduceMotion) {
+      _mapController.move(camera.center, target);
+      return;
+    }
+
+    // Parte de onde a câmera está agora, e não do alvo anterior: assim
+    // dois toques seguidos encadeiam sem tranco.
+    _zoomTween = Tween(begin: camera.zoom, end: target)
+        .chain(CurveTween(curve: Motion.smooth))
+        .animate(_zoomAnimation);
+    _zoomAnimation.forward(from: 0);
+  }
 
   void _onSearchChanged(String value) {
     _searchTimer?.cancel();
@@ -240,10 +289,18 @@ class _MapPickerSheetState extends ConsumerState<MapPickerSheet> {
                         children: [
                           _Map(
                             controller: _mapController,
-                            center: _initialCenter,
-                            zoom: _initialZoom,
+                            center: _startCenter,
+                            zoom: _startZoom,
                             point: _point,
                             onTap: _onMapTap,
+                          ),
+                          Positioned(
+                            left: Gap.sm,
+                            bottom: Gap.sm,
+                            child: _ZoomButtons(
+                              onZoomIn: () => _zoomBy(1),
+                              onZoomOut: () => _zoomBy(-1),
+                            ),
                           ),
                           if (_results.isNotEmpty)
                             _Results(results: _results, onPick: _selectResult),
@@ -299,8 +356,8 @@ class _Map extends StatelessWidget {
       options: MapOptions(
         initialCenter: center,
         initialZoom: zoom,
-        minZoom: 2,
-        maxZoom: 18,
+        minZoom: _minZoom,
+        maxZoom: _maxZoom,
         onTap: (_, latLng) => onTap(latLng),
       ),
       children: [
@@ -332,6 +389,73 @@ class _Map extends StatelessWidget {
           ],
         ),
       ],
+    );
+  }
+}
+
+/// Os limites de zoom do mapa. Ficam aqui porque tanto o [_Map] quanto
+/// os botões precisam obedecer aos mesmos.
+const _minZoom = 2.0;
+const _maxZoom = 18.0;
+
+/// Aproximar e afastar sem depender do gesto de pinça — no desktop não
+/// existe, e no celular nem todo mundo acerta.
+class _ZoomButtons extends StatelessWidget {
+  const _ZoomButtons({required this.onZoomIn, required this.onZoomOut});
+
+  final VoidCallback onZoomIn;
+  final VoidCallback onZoomOut;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: context.colors.surface.withValues(alpha: 0.92),
+      borderRadius: Radii.brMd,
+      elevation: 3,
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _ZoomButton(
+            icon: Icons.add_rounded,
+            tooltip: 'Aproximar',
+            onPressed: onZoomIn,
+          ),
+          Divider(height: 1, thickness: 1, color: context.colors.outline),
+          _ZoomButton(
+            icon: Icons.remove_rounded,
+            tooltip: 'Afastar',
+            onPressed: onZoomOut,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ZoomButton extends StatelessWidget {
+  const _ZoomButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: onPressed,
+        child: SizedBox(
+          width: 36,
+          height: 36,
+          child: Icon(icon, size: 20, color: context.colors.onSurface),
+        ),
+      ),
     );
   }
 }
