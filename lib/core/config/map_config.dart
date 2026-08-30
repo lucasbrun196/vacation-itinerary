@@ -15,14 +15,25 @@ abstract final class MapConfig {
 
   static bool get isConfigured => token.isNotEmpty;
 
-  /// Estilo raster do Mapbox — o plano gratuito cobre 750 mil
-  /// requisições de tile por mês.
+  /// Estilos do mapa, no formato `usuario/estilo`.
   ///
-  /// O `{r}` vira `@2x` em telas de alta densidade; as peças são de
-  /// 512px, daí `tileDimension: 512` e `zoomOffset: -1` no [TileLayer].
-  static String get tileUrl =>
-      'https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/512/{z}/{x}/{y}{r}'
-      '?access_token=$token';
+  /// Para usar um estilo próprio feito no Mapbox Studio, é só trocar
+  /// estas duas constantes pelo id de lá (`seu-usuario/clx...`). O resto
+  /// do app não muda.
+  static const lightStyle = 'mapbox/light-v11';
+  static const darkStyle = 'mapbox/dark-v11';
+
+  /// Tiles raster do estilo, na variante que combina com o tema do app.
+  ///
+  /// Isto é a **Static Tiles API**: o plano gratuito cobre 200 mil
+  /// requisições por mês. As peças são de 512px porque as de 256
+  /// custariam quatro requisições para cobrir a mesma área — daí
+  /// `tileDimension: 512` e `zoomOffset: -1` no [TileLayer].
+  ///
+  /// O `{r}` vira `@2x` em telas de alta densidade.
+  static String tileUrl({required bool dark}) =>
+      'https://api.mapbox.com/styles/v1/${dark ? darkStyle : lightStyle}'
+      '/tiles/512/{z}/{x}/{y}{r}?access_token=$token';
 
   static const tileDimension = 512;
   static const tileZoomOffset = -1.0;

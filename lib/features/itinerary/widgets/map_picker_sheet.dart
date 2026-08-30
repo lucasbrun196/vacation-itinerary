@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
@@ -215,22 +216,35 @@ class _MapPickerSheetState extends ConsumerState<MapPickerSheet> {
                   ),
                 ),
                 Gap.vMd,
-                ClipRRect(
-                  borderRadius: Radii.brMd,
-                  child: SizedBox(
-                    height: mapHeight,
-                    child: Stack(
-                      children: [
-                        _Map(
-                          controller: _mapController,
-                          center: _initialCenter,
-                          zoom: _initialZoom,
-                          point: _point,
-                          onTap: _onMapTap,
-                        ),
-                        if (_results.isNotEmpty)
-                          _Results(results: _results, onPick: _selectResult),
-                      ],
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    borderRadius: Radii.brMd,
+                    border: Border.all(color: context.colors.outline),
+                    boxShadow: [
+                      BoxShadow(
+                        color: context.colors.shadow.withValues(alpha: 0.10),
+                        blurRadius: 18,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: Radii.brMd,
+                    child: SizedBox(
+                      height: mapHeight,
+                      child: Stack(
+                        children: [
+                          _Map(
+                            controller: _mapController,
+                            center: _initialCenter,
+                            zoom: _initialZoom,
+                            point: _point,
+                            onTap: _onMapTap,
+                          ),
+                          if (_results.isNotEmpty)
+                            _Results(results: _results, onPick: _selectResult),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -287,7 +301,9 @@ class _Map extends StatelessWidget {
       ),
       children: [
         TileLayer(
-          urlTemplate: MapConfig.tileUrl,
+          // A chave força a recarga quando o tema muda de claro para escuro.
+          key: ValueKey(context.isDark),
+          urlTemplate: MapConfig.tileUrl(dark: context.isDark),
           tileDimension: MapConfig.tileDimension,
           zoomOffset: MapConfig.tileZoomOffset,
           retinaMode: RetinaMode.isHighDensity(context),
@@ -298,17 +314,12 @@ class _Map extends StatelessWidget {
             markers: [
               Marker(
                 point: point!,
-                width: 44,
-                height: 44,
+                width: 48,
+                height: 52,
+                // `topCenter` desenha o marcador acima do ponto, ou seja,
+                // com a ponta do pin exatamente onde a pessoa tocou.
                 alignment: Alignment.topCenter,
-                child: Icon(
-                  Icons.place_rounded,
-                  size: 40,
-                  color: AppColors.coral,
-                  shadows: const [
-                    Shadow(blurRadius: 6, color: Colors.black38, offset: Offset(0, 2)),
-                  ],
-                ),
+                child: _Pin(point: point!),
               ),
             ],
           ),
@@ -322,6 +333,47 @@ class _Map extends StatelessWidget {
         ),
       ],
     );
+  }
+}
+
+/// O pin. Cai de cima a cada novo ponto — a animação é o que dá a
+/// sensação de "marcado aqui"; a elipse embaixo é o que o assenta no
+/// chão em vez de deixá-lo flutuando.
+class _Pin extends StatelessWidget {
+  const _Pin({required this.point});
+
+  final LatLng point;
+
+  @override
+  Widget build(BuildContext context) {
+    final pin = Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Icon(
+          Icons.place_rounded,
+          size: 42,
+          color: AppColors.coral,
+          shadows: [
+            Shadow(blurRadius: 8, color: Colors.black38, offset: Offset(0, 3)),
+          ],
+        ),
+        Container(
+          width: 12,
+          height: 4,
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.28),
+            borderRadius: Radii.brPill,
+          ),
+        ),
+      ],
+    );
+
+    if (context.reduceMotion) return pin;
+
+    return pin
+        .animate(key: ValueKey('${point.latitude},${point.longitude}'))
+        .fadeIn(duration: Motion.fast)
+        .slideY(begin: -0.5, end: 0, duration: Motion.normal, curve: Motion.spring);
   }
 }
 
