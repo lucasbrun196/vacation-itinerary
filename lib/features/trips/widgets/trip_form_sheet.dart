@@ -168,7 +168,7 @@ class _TripFormSheetState extends ConsumerState<TripFormSheet> {
                       child: Text(
                         _dates == null
                             ? 'Escolher ida e volta'
-                            : '${Fmt.dateShort(_dates!.start)} — ${Fmt.dateWithYear(_dates!.end)}',
+                            : Fmt.dateRange(_dates!.start, _dates!.end),
                         style: _dates == null
                             ? context.text.bodyMedium
                                 ?.copyWith(color: context.colors.onSurfaceVariant)
