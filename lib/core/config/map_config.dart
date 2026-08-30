@@ -15,20 +15,14 @@ abstract final class MapConfig {
 
   static bool get isConfigured => token.isNotEmpty;
 
-  /// Estilos do mapa, no formato `usuario/estilo`.
+  /// Estilo do mapa, no formato `usuario/estilo`.
   ///
-  /// Para usar um estilo próprio feito no Mapbox Studio, é só trocar
-  /// estas duas constantes pelo id de lá (`seu-usuario/clx...`). O resto
-  /// do app não muda.
-  static const lightStyle = 'mapbox/light-v11';
-  static const darkStyle = 'mapbox/dark-v11';
+  /// Para usar um estilo próprio feito no Mapbox Studio, é só trocar esta
+  /// constante pelo id de lá (`seu-usuario/clx...`). O resto do app não
+  /// muda.
+  static const style = 'mapbox/streets-v12';
 
-  /// Satélite **com ruas e rótulos**. A imagem pura (`satellite-v9`) é
-  /// bonita e inútil para achar um endereço: sem nome de rua ninguém se
-  /// localiza.
-  static const satelliteStyle = 'mapbox/satellite-streets-v12';
-
-  /// Tiles raster do estilo, na variante que combina com o tema do app.
+  /// Tiles raster do estilo.
   ///
   /// Isto é a **Static Tiles API**: o plano gratuito cobre 200 mil
   /// requisições por mês. As peças são de 512px porque as de 256
@@ -42,12 +36,9 @@ abstract final class MapConfig {
   /// mapa ficava cinza.
   ///
   /// O `{r}` vira `@2x` em telas de alta densidade.
-  static String tileUrl({required bool dark, required bool satellite}) {
-    // O satélite é o mesmo nos dois temas: não existe foto aérea escura.
-    final style = satellite ? satelliteStyle : (dark ? darkStyle : lightStyle);
-    return 'https://api.mapbox.com/styles/v1/$style'
-        '/tiles/512/{z}/{x}/{y}{r}?access_token=$token';
-  }
+  static String get tileUrl =>
+      'https://api.mapbox.com/styles/v1/$style'
+      '/tiles/512/{z}/{x}/{y}{r}?access_token=$token';
 
   static const tileDimension = 512;
 
