@@ -1,0 +1,55 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "itinerary",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "startAt", "order": "ASCENDING" },
+        { "fieldPath": "order", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "itinerary",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "dayKey", "order": "ASCENDING" },
+        { "fieldPath": "startAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "bills",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "entries",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "billId", "order": "ASCENDING" },
+        { "fieldPath": "date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "shares",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "tripId", "order": "ASCENDING" },
+        { "fieldPath": "memberId", "order": "ASCENDING" },
+        { "fieldPath": "dueDate", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "shares",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "tripId", "order": "ASCENDING" },
+        { "fieldPath": "isPaid", "order": "ASCENDING" },
+        { "fieldPath": "dueDate", "order": "ASCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

@@ -1,0 +1,80 @@
+rules_version = '2';
+
+// =====================================================================
+// Regras do Storage.
+//
+// Limitação conhecida: regras de Storage não conseguem consultar o
+// Firestore, então não dá para conferir aqui se a pessoa participa da
+// viagem. A proteção é: precisa estar autenticada, o caminho precisa
+// seguir a estrutura esperada, e tipo e tamanho são validados — o que
+// já barra abuso automatizado e enchente de arquivo grande.
+//
+// Os nomes de arquivo são UUID e as URLs de download levam token, de
+// modo que ninguém adivinha o caminho de um comprovante alheio.
+// =====================================================================
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isImage() {
+      return request.resource.contentType.matches('image/.*');
+    }
+
+    function isVideo() {
+      return request.resource.contentType.matches('video/.*');
+    }
+
+    function isDocument() {
+      return request.resource.contentType == 'application/pdf';
+    }
+
+    function underSize(mb) {
+      return request.resource.size < mb * 1024 * 1024;
+    }
+
+    match /trips/{tripId} {
+
+      // Capa da viagem.
+      match /cover/{fileName} {
+        allow read: if isSignedIn();
+        allow write: if isSignedIn() && isImage() && underSize(8);
+        allow delete: if isSignedIn();
+      }
+
+      // Avatares.
+      match /members/{memberId}/{fileName} {
+        allow read: if isSignedIn();
+        allow write: if isSignedIn() && isImage() && underSize(4);
+        allow delete: if isSignedIn();
+      }
+
+      // Comprovantes de gasto e de PIX: foto ou PDF.
+      match /receipts/{billId}/{fileName} {
+        allow read: if isSignedIn();
+        allow write: if isSignedIn() && (isImage() || isDocument()) && underSize(20);
+        allow delete: if isSignedIn();
+      }
+
+      // Mural: fotos e vídeos.
+      match /board/{postId}/{fileName} {
+        allow read: if isSignedIn();
+        allow write: if isSignedIn() && (isImage() || isVideo()) && underSize(150);
+        allow delete: if isSignedIn();
+      }
+
+      match /board/{postId}/thumbs/{fileName} {
+        allow read: if isSignedIn();
+        allow write: if isSignedIn() && isImage() && underSize(2);
+        allow delete: if isSignedIn();
+      }
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,0 +1,76 @@
+// Modelo do arquivo gerado pela FlutterFire CLI.
+// Copie para `lib/firebase_options.dart` e preencha com os dados do seu
+// projeto, ou rode `flutterfire configure` para gerar automaticamente.
+// ignore_for_file: type=lint
+import 'package:firebase_core/firebase_core.dart' show FirebaseOptions;
+import 'package:flutter/foundation.dart'
+    show defaultTargetPlatform, kIsWeb, TargetPlatform;
+
+/// Default [FirebaseOptions] for use with your Firebase apps.
+///
+/// Example:
+/// ```dart
+/// import 'firebase_options.dart';
+/// // ...
+/// await Firebase.initializeApp(
+///   options: DefaultFirebaseOptions.currentPlatform,
+/// );
+/// ```
+class DefaultFirebaseOptions {
+  static FirebaseOptions get currentPlatform {
+    if (kIsWeb) {
+      return web;
+    }
+    switch (defaultTargetPlatform) {
+      case TargetPlatform.android:
+        return android;
+      case TargetPlatform.iOS:
+        return ios;
+      case TargetPlatform.macOS:
+        throw UnsupportedError(
+          'DefaultFirebaseOptions have not been configured for macos - '
+          'you can reconfigure this by running the FlutterFire CLI again.',
+        );
+      case TargetPlatform.windows:
+        throw UnsupportedError(
+          'DefaultFirebaseOptions have not been configured for windows - '
+          'you can reconfigure this by running the FlutterFire CLI again.',
+        );
+      case TargetPlatform.linux:
+        throw UnsupportedError(
+          'DefaultFirebaseOptions have not been configured for linux - '
+          'you can reconfigure this by running the FlutterFire CLI again.',
+        );
+      default:
+        throw UnsupportedError(
+          'DefaultFirebaseOptions are not supported for this platform.',
+        );
+    }
+  }
+
+  static const FirebaseOptions web = FirebaseOptions(
+    apiKey: 'SUA_API_KEY_AQUI',
+    appId: '1:SEU_SENDER_ID:web:SEU_APP_ID',
+    messagingSenderId: 'SEU_SENDER_ID',
+    projectId: 'SEU_PROJECT_ID',
+    authDomain: 'SEU_PROJECT_ID.firebaseapp.com',
+    storageBucket: 'SEU_PROJECT_ID.firebasestorage.app',
+  );
+
+  static const FirebaseOptions android = FirebaseOptions(
+    apiKey: 'SUA_API_KEY_AQUI',
+    appId: '1:SEU_SENDER_ID:android:SEU_APP_ID',
+    messagingSenderId: 'SEU_SENDER_ID',
+    projectId: 'SEU_PROJECT_ID',
+    storageBucket: 'SEU_PROJECT_ID.firebasestorage.app',
+  );
+
+  static const FirebaseOptions ios = FirebaseOptions(
+    apiKey: 'SUA_API_KEY_AQUI',
+    appId: '1:SEU_SENDER_ID:ios:SEU_APP_ID',
+    messagingSenderId: 'SEU_SENDER_ID',
+    projectId: 'SEU_PROJECT_ID',
+    storageBucket: 'SEU_PROJECT_ID.firebasestorage.app',
+    iosBundleId: 'com.viagem.vacationItinerary',
+  );
+}

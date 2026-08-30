@@ -1,0 +1,135 @@
+rules_version = '2';
+
+// =====================================================================
+// Acesso é sempre por participação na viagem.
+//
+// Regra geral do produto: todo participante gerencia a viagem por
+// completo — roteiro, contas, cotas e mural, sem restrição. As únicas
+// coisas reservadas ao administrador são a lista de participantes e a
+// exclusão da viagem.
+// =====================================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function uid() {
+      return request.auth.uid;
+    }
+
+    function tripDoc(tripId) {
+      return get(/databases/$(database)/documents/trips/$(tripId)).data;
+    }
+
+    function isMember(tripId) {
+      return isSignedIn() && uid() in tripDoc(tripId).memberIds;
+    }
+
+    function isTripAdmin(tripId) {
+      return isSignedIn() && uid() == tripDoc(tripId).adminId;
+    }
+
+    // -----------------------------------------------------------------
+    // Contas do app.
+    //
+    // Espelho de `users/{uid}` do Firebase Auth. Qualquer pessoa logada
+    // pode ler para poder convidar alguém pelo e-mail — é o preço de
+    // não ter backend próprio para fazer essa busca.
+    // -----------------------------------------------------------------
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn() && uid() == userId;
+      // Só a própria pessoa apaga o próprio perfil, ao excluir a conta.
+      allow delete: if isSignedIn() && uid() == userId;
+    }
+
+    // -----------------------------------------------------------------
+    // Viagens
+    // -----------------------------------------------------------------
+    match /trips/{tripId} {
+
+      allow read: if isSignedIn() && uid() in resource.data.memberIds;
+
+      // Qualquer pessoa cria uma viagem, virando admin e único membro.
+      allow create: if isSignedIn()
+                    && request.resource.data.adminId == uid()
+                    && request.resource.data.memberIds == [uid()];
+
+      // Todo participante edita os dados da viagem. Mudar a lista de
+      // participantes ou passar a viagem para outro dono, só o admin.
+      allow update: if isMember(tripId)
+                    && request.resource.data.adminId == resource.data.adminId
+                    && (request.resource.data.memberIds == resource.data.memberIds
+                        || isTripAdmin(tripId));
+
+      allow delete: if isTripAdmin(tripId);
+
+      // Participantes: o admin controla quem entra e sai; cada pessoa
+      // ajusta o próprio perfil (nome, emoji, chave PIX).
+      match /members/{memberId} {
+        allow read: if isMember(tripId);
+        allow create, delete: if isTripAdmin(tripId)
+                              || (isSignedIn() && memberId == uid());
+        allow update: if isTripAdmin(tripId)
+                      || (isMember(tripId) && memberId == uid());
+      }
+
+      // Atenção ao separar `delete` das validações: em uma exclusão o
+      // `request.resource` é nulo, então qualquer regra que inspecione
+      // os campos do documento nega a operação silenciosamente.
+      match /itinerary/{itemId} {
+        allow read: if isMember(tripId);
+        allow create, update: if isMember(tripId)
+                              && request.resource.data.title is string
+                              && request.resource.data.title.size() <= 200;
+        allow delete: if isMember(tripId);
+      }
+
+      match /bills/{billId} {
+        allow read: if isMember(tripId);
+        allow write: if isMember(tripId);
+
+        match /entries/{entryId} {
+          allow read: if isMember(tripId);
+          allow create, update: if isMember(tripId)
+                                && request.resource.data.amountCents is int
+                                && request.resource.data.amountCents >= 0;
+          allow delete: if isMember(tripId);
+        }
+
+        match /shares/{shareId} {
+          allow read: if isMember(tripId);
+          allow create, update: if isMember(tripId)
+                                && request.resource.data.amountCents is int
+                                && request.resource.data.amountCents >= 0
+                                && request.resource.data.tripId == tripId;
+          allow delete: if isMember(tripId);
+        }
+      }
+
+      match /posts/{postId} {
+        allow read: if isMember(tripId);
+        allow write: if isMember(tripId);
+      }
+    }
+
+    // -----------------------------------------------------------------
+    // Consulta de grupo de coleções sobre as cotas.
+    //
+    // Uma regra aninhada não autoriza collectionGroup — o Firestore
+    // exige uma regra que case com o padrão do grupo. Por isso toda
+    // cota carrega `tripId`: é o que permite conferir a participação
+    // aqui, e o que obriga a consulta a ser filtrada por viagem.
+    // -----------------------------------------------------------------
+    match /{path=**}/shares/{shareId} {
+      allow read: if isMember(resource.data.tripId);
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
