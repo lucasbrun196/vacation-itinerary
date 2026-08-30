@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <base href="$FLUTTER_BASE_HREF">
+
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="description" content="O roteiro, os gastos e as fotos da viagem em um lugar só.">
+  <meta name="theme-color" content="#FF6B6B">
+
+  <!-- PWA / iOS: permite instalar na tela inicial, que é a estratégia para iPhone -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Viagem">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+
+  <link rel="icon" type="image/png" href="favicon.png"/>
+  <link rel="manifest" href="manifest.json">
+
+  <!-- Pré-conexão às fontes: reduz o salto de layout no primeiro carregamento -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+  <title>Viagem</title>
+
+  <style>
+    html, body { margin: 0; padding: 0; height: 100%; background: #FDF8F3; }
+
+    /* Splash: o bundle do Flutter Web leva alguns segundos no primeiro
+       acesso. Sem isto o usuário encara uma tela branca. */
+    #splash {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 22px;
+      background: linear-gradient(135deg, #FF6B6B 0%, #FFA45B 100%);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      color: #fff;
+      z-index: 9999;
+      transition: opacity .45s ease, visibility .45s ease;
+    }
+    #splash.hidden { opacity: 0; visibility: hidden; }
+
+    .splash-mark {
+      font-size: 58px;
+      animation: float 2.6s ease-in-out infinite;
+    }
+    .splash-title {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.4px;
+    }
+    .splash-sub {
+      font-size: 14px;
+      opacity: .8;
+      margin-top: -14px;
+    }
+    .splash-bar {
+      width: 160px;
+      height: 4px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.28);
+      overflow: hidden;
+    }
+    .splash-bar::after {
+      content: '';
+      display: block;
+      width: 40%;
+      height: 100%;
+      border-radius: 999px;
+      background: #fff;
+      animation: slide 1.3s ease-in-out infinite;
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0) rotate(-4deg); }
+      50%      { transform: translateY(-14px) rotate(4deg); }
+    }
+    @keyframes slide {
+      0%   { transform: translateX(-100%); }
+      100% { transform: translateX(350%); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .splash-mark, .splash-bar::after { animation: none; }
+    }
+  </style>
+</head>
+<body>
+  <div id="splash">
+    <div class="splash-mark">🏝️</div>
+    <div class="splash-title">Preparando a viagem</div>
+    <div class="splash-sub">só um instante…</div>
+    <div class="splash-bar"></div>
+  </div>
+
+  <script>
+    // Removido pelo Flutter assim que o primeiro frame é pintado.
+    window.addEventListener('flutter-first-frame', function () {
+      var splash = document.getElementById('splash');
+      if (splash) {
+        splash.classList.add('hidden');
+        setTimeout(function () { splash.remove(); }, 500);
+      }
+    });
+  </script>
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+</html>
