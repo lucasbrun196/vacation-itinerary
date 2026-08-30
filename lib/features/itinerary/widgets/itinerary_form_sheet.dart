@@ -10,7 +10,10 @@ import '../../../core/utils/money.dart';
 import '../../../data/models/bill.dart';
 import '../../../data/models/itinerary_enums.dart';
 import '../../../data/models/itinerary_item.dart';
+import '../../../data/services/geocoding_service.dart';
+import '../../../core/config/map_config.dart';
 import '../../../shared/widgets/layout/app_sheet.dart';
+import 'map_picker_sheet.dart';
 
 Future<void> showItineraryForm(
   BuildContext context, {
@@ -53,6 +56,11 @@ class _ItineraryFormSheetState extends ConsumerState<ItineraryFormSheet> {
   TimeOfDay? _endTime;
   TransportMode? _transport;
   String? _billId;
+
+  /// A coordenada escolhida no mapa. Só existe no banco — a tela mostra
+  /// o nome do lugar.
+  double? _lat;
+  double? _lng;
   bool _saving = false;
 
   @override
@@ -64,6 +72,8 @@ class _ItineraryFormSheetState extends ConsumerState<ItineraryFormSheet> {
     _category = item?.category ?? ItineraryCategory.other;
     _transport = item?.transport;
     _billId = item?.billId;
+    _lat = item?.lat;
+    _lng = item?.lng;
 
     if (item != null) {
       _titleController.text = item.title;
@@ -108,6 +118,28 @@ class _ItineraryFormSheetState extends ConsumerState<ItineraryFormSheet> {
 
   String? _trimmed(TextEditingController c) =>
       c.text.trim().isEmpty ? null : c.text.trim();
+
+  PickedPlace? get _pickedPlace => (_lat == null || _lng == null)
+      ? null
+      : PickedPlace(
+          lat: _lat!,
+          lng: _lng!,
+          name: _placeController.text.trim().isEmpty
+              ? 'Ponto escolhido no mapa'
+              : _placeController.text.trim(),
+          address: _trimmed(_addressController),
+        );
+
+  Future<void> _pickOnMap() async {
+    final place = await showMapPicker(context, initial: _pickedPlace);
+    if (!mounted || place == null) return;
+    setState(() {
+      _lat = place.lat;
+      _lng = place.lng;
+      _placeController.text = place.name;
+      if (place.address != null) _addressController.text = place.address!;
+    });
+  }
 
   Future<void> _pickDate() async {
     final trip = ref.read(tripProvider).valueOrNull;
@@ -156,6 +188,8 @@ class _ItineraryFormSheetState extends ConsumerState<ItineraryFormSheet> {
         endAt: _endAt,
         placeName: _trimmed(_placeController),
         address: _trimmed(_addressController),
+        lat: _lat,
+        lng: _lng,
         transport: _transport,
         billId: _billId,
         notes: _trimmed(_notesController),
@@ -252,9 +286,21 @@ class _ItineraryFormSheetState extends ConsumerState<ItineraryFormSheet> {
                   // ----- Onde -----
                   Text('Onde', style: context.text.labelLarge),
                   Gap.vMd,
+                  _MapField(
+                    hasPoint: _lat != null,
+                    placeName: _placeController.text,
+                    onPick: _pickOnMap,
+                    onClear: () => setState(() {
+                      _lat = null;
+                      _lng = null;
+                    }),
+                  ),
+                  Gap.vMd,
                   TextFormField(
                     controller: _placeController,
                     textCapitalization: TextCapitalization.words,
+                    // Mantém o nome do ponto marcado em dia com o campo.
+                    onChanged: (_) => setState(() {}),
                     decoration: const InputDecoration(
                       labelText: 'Lugar',
                       hintText: 'Pântano do Sul',
@@ -344,6 +390,93 @@ class _ItineraryFormSheetState extends ConsumerState<ItineraryFormSheet> {
 }
 
 // ---------------------------------------------------------------
+
+/// Atalho para o mapa. O ponto é o que a previsão do tempo vai usar; a
+/// pessoa continua livre para digitar o lugar à mão nos campos abaixo.
+class _MapField extends StatelessWidget {
+  const _MapField({
+    required this.hasPoint,
+    required this.placeName,
+    required this.onPick,
+    required this.onClear,
+  });
+
+  final bool hasPoint;
+  final String placeName;
+  final VoidCallback onPick;
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!MapConfig.isConfigured) {
+      return Container(
+        padding: const EdgeInsets.all(Gap.md),
+        decoration: BoxDecoration(
+          color: context.colors.surfaceContainerHigh,
+          borderRadius: Radii.brMd,
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.map_outlined, size: 16, color: context.colors.onSurfaceVariant),
+            Gap.hMd,
+            Expanded(
+              child: Text(
+                'O mapa precisa do token do Mapbox '
+                '(--dart-define=MAPBOX_TOKEN). Veja o README.',
+                style: context.text.bodySmall,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (!hasPoint) {
+      return OutlinedButton.icon(
+        onPressed: onPick,
+        icon: const Icon(Icons.map_outlined, size: 18),
+        label: const Text('Escolher no mapa'),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.sm, Gap.sm),
+      decoration: BoxDecoration(
+        color: AppColors.sky.withValues(alpha: 0.12),
+        borderRadius: Radii.brMd,
+        border: Border.all(color: AppColors.sky, width: 1.4),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.place_rounded, size: 18, color: AppColors.sky),
+          Gap.hMd,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  placeName.trim().isEmpty ? 'Ponto marcado no mapa' : placeName.trim(),
+                  style: context.text.labelLarge,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text('Marcado no mapa', style: context.text.labelSmall),
+              ],
+            ),
+          ),
+          TextButton(onPressed: onPick, child: const Text('Trocar')),
+          IconButton(
+            tooltip: 'Tirar do mapa',
+            onPressed: onClear,
+            icon: const Icon(Icons.close_rounded, size: 18),
+            visualDensity: VisualDensity.compact,
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 class _CategoryPicker extends StatelessWidget {
   const _CategoryPicker({required this.value, required this.onChanged});

@@ -82,9 +82,29 @@ service cloud.firestore {
       // os campos do documento nega a operação silenciosamente.
       match /itinerary/{itemId} {
         allow read: if isMember(tripId);
+        // A coordenada do mapa é opcional; quando vem, tem que ser um
+        // ponto de verdade — é dela que a previsão do tempo depende.
+        function validLat() {
+          return !('lat' in request.resource.data)
+                 || request.resource.data.lat == null
+                 || (request.resource.data.lat is number
+                     && request.resource.data.lat >= -90
+                     && request.resource.data.lat <= 90);
+        }
+
+        function validLng() {
+          return !('lng' in request.resource.data)
+                 || request.resource.data.lng == null
+                 || (request.resource.data.lng is number
+                     && request.resource.data.lng >= -180
+                     && request.resource.data.lng <= 180);
+        }
+
         allow create, update: if isMember(tripId)
                               && request.resource.data.title is string
-                              && request.resource.data.title.size() <= 200;
+                              && request.resource.data.title.size() <= 200
+                              && validLat()
+                              && validLng();
         allow delete: if isMember(tripId);
       }
 

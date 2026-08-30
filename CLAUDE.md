@@ -12,7 +12,8 @@ git é em **inglês** — ver `.claude/skills/commit/SKILL.md`.
 ## Comandos
 
 ```bash
-flutter run -d web-server --web-port 5173   # a porta usada por .claude/launch.json
+flutter run -d web-server --web-port 5173 \
+  --dart-define=MAPBOX_TOKEN=pk.xxx         # a porta usada por .claude/launch.json
 flutter analyze                             # precisa ficar sem nenhum aviso
 flutter test
 flutter test test/bill_split_test.dart --plain-name 'cada pessoa paga'
@@ -74,6 +75,20 @@ de outras pessoas. Ver `FirestoreRefs.sharesOfTrip`.
 raiz de branch parametrizada, e todas as rotas internas são
 `/viagem/:tripId/...`.
 
+**O seletor de mapa também só abre por `showAppSheet`.** Mesma razão dos
+formulários — ele é um sheet aninhado, aberto de dentro de outro, e é o
+`showAppSheet` que devolve o `PickedPlace` escolhido.
+
+**Coordenada não aparece na tela.** `lat`/`lng` existem para a API de previsão
+do tempo. O que o usuário lê é sempre `placeName` (e `address`), inclusive no
+card do roteiro. Um pin cheio no card sinaliza "está fixado no mapa".
+
+**A geocodificação é o Nominatim (OSM), não o Mapbox.** O plano gratuito do
+Mapbox é o *temporary geocoding*, cujos termos não deixam guardar o resultado —
+e o nome do lugar vai para o Firestore. Do Mapbox usamos só os tiles. O
+Nominatim aceita no máximo uma requisição por segundo: o debounce de 600 ms em
+`map_picker_sheet.dart` não é enfeite.
+
 **`third_party/firebase_core_web` é uma cópia com patch de duas linhas**, ligada
 por `dependency_overrides`, porque a versão publicada não compila no Dart 3.11.
 Está excluída do analisador. Remover quando o FlutterFire publicar uma versão
@@ -97,3 +112,7 @@ compatível — instruções em `third_party/firebase_core_web/PATCH.md`.
 `lib/firebase_options.dart`, `android/app/google-services.json` e
 `ios/Runner/GoogleService-Info.plist` estão no `.gitignore`. Gere os seus com
 `flutterfire configure`, ou copie `lib/firebase_options.dart.example`.
+
+O token do Mapbox entra por `--dart-define=MAPBOX_TOKEN=pk.xxx` e é lido em
+`lib/core/config/map_config.dart`. Sem ele o app roda igual: o botão "Escolher
+no mapa" fica desabilitado com a explicação. Ver o README.

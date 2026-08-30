@@ -17,6 +17,7 @@ import '../data/repositories/trip_repository.dart';
 import '../data/repositories/user_repository.dart';
 import '../data/services/auth_service.dart';
 import '../data/services/firestore_refs.dart';
+import '../data/services/geocoding_service.dart';
 import '../data/services/local_prefs_service.dart';
 import '../data/services/storage_service.dart';
 
@@ -35,6 +36,10 @@ final storageServiceProvider =
 
 final authServiceProvider =
     Provider((ref) => AuthService(ref.watch(firebaseAuthProvider)));
+
+/// Nome do lugar a partir da coordenada (e vice-versa). Não depende da
+/// viagem, então não precisa declarar `dependencies`.
+final geocodingServiceProvider = Provider((ref) => GeocodingService());
 
 /// Injetado no `main` depois de carregar as preferências.
 final prefsProvider = Provider<LocalPrefsService>(
