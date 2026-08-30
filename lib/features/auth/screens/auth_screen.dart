@@ -7,6 +7,7 @@ import '../../../core/extensions/context_ext.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../data/services/auth_service.dart';
+import '../../../shared/widgets/feedback/error_banner.dart';
 
 enum AuthMode { signIn, signUp }
 
@@ -212,7 +213,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 
                               if (_error != null) ...[
                                 Gap.vMd,
-                                _ErrorBanner(message: _error!),
+                                ErrorBanner(message: _error!),
                               ],
 
                               Gap.vLg,
@@ -350,35 +351,5 @@ class _Card extends StatelessWidget {
           begin: 0.08,
           curve: Motion.enter,
         );
-  }
-}
-
-class _ErrorBanner extends StatelessWidget {
-  const _ErrorBanner({required this.message});
-
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(Gap.md),
-      decoration: BoxDecoration(
-        color: AppColors.danger.withValues(alpha: 0.10),
-        borderRadius: Radii.brMd,
-        border: Border.all(color: AppColors.danger.withValues(alpha: 0.35)),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.error_outline_rounded, color: AppColors.danger, size: 18),
-          Gap.hMd,
-          Expanded(
-            child: Text(
-              message,
-              style: context.text.bodySmall?.copyWith(color: AppColors.danger),
-            ),
-          ),
-        ],
-      ),
-    ).animate().fadeIn(duration: Motion.fast).shakeX(hz: 3, amount: 2);
   }
 }
