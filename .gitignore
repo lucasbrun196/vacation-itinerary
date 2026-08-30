@@ -49,5 +49,6 @@ ios/Flutter/Generated.xcconfig
 ios/Flutter/flutter_export_environment.sh
 ios/Flutter/ephemeral/
 
-# Ferramentas locais
-.claude/
+# Ferramentas locais — as skills do projeto são versionadas
+.claude/*
+!.claude/skills/
