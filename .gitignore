@@ -1,0 +1,53 @@
+# Flutter / Dart
+.dart_tool/
+.packages
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+
+# macOS
+.DS_Store
+
+# Firebase (chaves geradas localmente)
+.firebase/
+firebase-debug.log
+
+# Android
+/android/app/debug
+/android/app/profile
+/android/app/release
+/android/key.properties
+*.jks
+
+# iOS
+/ios/Pods/
+/ios/.symlinks/
+/ios/Flutter/Flutter.framework
+/ios/Flutter/Flutter.podspec
+
+# Vercel
+.vercel
+
+# Credenciais do Firebase — geradas por `flutterfire configure`.
+# Nunca versionar: contêm as apiKeys do projeto.
+lib/firebase_options.dart
+android/app/google-services.json
+ios/Runner/GoogleService-Info.plist
+
+# Configuração local de build (caminhos da máquina)
+android/local.properties
+ios/Flutter/Generated.xcconfig
+ios/Flutter/flutter_export_environment.sh
+ios/Flutter/ephemeral/
+
+# Ferramentas locais
+.claude/

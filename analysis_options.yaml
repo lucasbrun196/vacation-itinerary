@@ -1,0 +1,6 @@
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  exclude:
+    # Cópia local de um pacote do pub — não é código nosso.
+    - third_party/**
