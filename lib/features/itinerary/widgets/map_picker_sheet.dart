@@ -62,10 +62,12 @@ class _MapPickerSheetState extends ConsumerState<MapPickerSheet> {
   bool _searching = false;
   bool _resolving = false;
 
-  /// Começa no satélite: escolhendo praia ou trilha, a foto diz mais que
-  /// o desenho. O alternador troca para o mapa quando a pessoa precisa
-  /// de nome de rua.
-  bool _satellite = true;
+  /// Começa no mapa desenhado, que é o mais leve: uma peça do satélite
+  /// pesa umas três vezes mais que a mesma peça do mapa. O número de
+  /// requisições — o que a cota do Mapbox conta — é o mesmo nos dois; o
+  /// que muda é quanto o celular baixa. O alternador está ali para quando
+  /// a foto ajudar mais, como ao escolher um ponto de praia.
+  bool _satellite = false;
 
   @override
   void initState() {
