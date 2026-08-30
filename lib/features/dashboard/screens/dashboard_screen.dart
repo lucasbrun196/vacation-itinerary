@@ -7,7 +7,6 @@ import '../../../app/destinations.dart';
 import '../../../app/providers.dart';
 import '../../../app/router.dart';
 import '../../../core/extensions/context_ext.dart';
-import '../../../core/responsive/responsive.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/theme/app_typography.dart';
@@ -20,6 +19,7 @@ import '../../../shared/widgets/feedback/animated_progress_bar.dart';
 import '../../../shared/widgets/feedback/loading_shimmer.dart';
 import '../../../shared/widgets/layout/app_page.dart';
 import '../../../shared/widgets/layout/section_header.dart';
+import '../../../shared/widgets/layout/stat_grid.dart';
 import '../../expenses/controllers/money_controllers.dart';
 import '../widgets/trip_hero.dart';
 
@@ -61,16 +61,7 @@ class DashboardScreen extends ConsumerWidget {
             onAction: () => context.go(Routes.tripSection(tripId, AppDestination.expenses)),
           )
         else ...[
-          GridView(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: responsiveValue(context, mobile: 2, tablet: 3, desktop: 3),
-              crossAxisSpacing: Gap.md,
-              mainAxisSpacing: Gap.md,
-              mainAxisExtent:
-                  responsiveValue(context, mobile: 152.0, tablet: 148.0, desktop: 148.0),
-            ),
+          StatGrid(
             children: [
               StatCard(
                 label: 'Total das contas',

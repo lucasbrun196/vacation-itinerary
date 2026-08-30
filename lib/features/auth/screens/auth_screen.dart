@@ -231,8 +231,12 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                                     : Text(_isSignUp ? 'Criar conta' : 'Entrar'),
                               ),
                               Gap.vMd,
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
+                              // `Wrap`, não `Row`: a pergunta e o botão passam
+                              // dos 264px do cartão em tela estreita, e mais
+                              // ainda com a fonte aumentada no navegador.
+                              Wrap(
+                                alignment: WrapAlignment.center,
+                                crossAxisAlignment: WrapCrossAlignment.center,
                                 children: [
                                   Text(
                                     _isSignUp ? 'Já tem conta?' : 'Ainda não tem conta?',

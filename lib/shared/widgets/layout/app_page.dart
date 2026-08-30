@@ -65,6 +65,8 @@ class AppPage extends StatelessWidget {
                               style: context.isMobile
                                   ? context.text.headlineMedium
                                   : context.text.displaySmall,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
                             ),
                             if (subtitle != null) ...[
                               Gap.vXs,

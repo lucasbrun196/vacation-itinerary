@@ -155,7 +155,9 @@ class _Timeline extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 58,
+      // A coluna do horário come 58px fixos — 21% da largura útil no celular,
+      // e é o que aperta os chips do card. Em tela estreita ela encolhe.
+      width: context.isNarrow ? 44 : 58,
       child: Column(
         children: [
           SizedBox(
@@ -334,10 +336,17 @@ class _Chip extends StatelessWidget {
         children: [
           Icon(icon, size: 11, color: color),
           Gap.hXs,
-          Text(
-            label,
-            style: context.text.labelSmall
-                ?.copyWith(color: color, fontWeight: FontWeight.w700),
+          // O `Wrap` não encolhe os filhos: sem o `Flexible`, um chip mais
+          // largo que a linha estoura em vez de quebrar. O rótulo com o nome
+          // da conta é justamente o que passa da faixa de ~230px do card.
+          Flexible(
+            child: Text(
+              label,
+              style: context.text.labelSmall
+                  ?.copyWith(color: color, fontWeight: FontWeight.w700),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
         ],
       ),

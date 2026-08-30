@@ -85,19 +85,30 @@ class MemberChip extends StatelessWidget {
             children: [
               MemberAvatar(member: member, size: 32, selected: selected, showBorder: false),
               Gap.hSm,
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    member.shortName,
-                    style: context.text.labelLarge?.copyWith(
-                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+              // `Flexible` porque o chip vive dentro de `Wrap`/`Row`: sem
+              // isso um nome longo empurra o chip para fora da tela.
+              Flexible(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      member.shortName,
+                      style: context.text.labelLarge?.copyWith(
+                        fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                  ),
-                  if (subtitle != null)
-                    Text(subtitle!, style: context.text.labelSmall),
-                ],
+                    if (subtitle != null)
+                      Text(
+                        subtitle!,
+                        style: context.text.labelSmall,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                  ],
+                ),
               ),
               if (trailing != null) ...[Gap.hSm, trailing!],
               Gap.hXs,

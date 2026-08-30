@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/extensions/context_ext.dart';
@@ -41,44 +42,63 @@ class _GlassCardState extends State<GlassCard> {
   Widget build(BuildContext context) {
     final interactive = widget.onTap != null;
     final accent = widget.accent;
-    final lift = _pressed ? 0.98 : (_hovered && interactive ? 1.012 : 1.0);
+    final highlighted = _hovered && interactive;
+    final lift = _pressed ? 0.98 : (highlighted ? 1.012 : 1.0);
+
+    Widget content = AnimatedContainer(
+      duration: Motion.fast,
+      curve: Motion.enter,
+      decoration: BoxDecoration(
+        color: widget.color ?? context.colors.surface,
+        borderRadius: widget.borderRadius,
+        border: Border.all(
+          color: highlighted
+              ? (accent ?? AppColors.coral).withValues(alpha: 0.45)
+              : context.colors.outline,
+          width: 1.2,
+        ),
+        boxShadow: !widget.showShadow
+            ? null
+            : highlighted
+                ? AppColors.glow(accent ?? AppColors.coral, opacity: 0.18, blur: 28, y: 12)
+                : AppColors.softShadow,
+      ),
+      // O respingo do toque é pintado pelo `Material`, que é filho do
+      // container: assim ele aparece **por cima** do fundo do card. Com o
+      // padding no container, o respingo parava na borda do conteúdo.
+      child: interactive
+          ? Material(
+              type: MaterialType.transparency,
+              borderRadius: widget.borderRadius,
+              child: InkWell(
+                borderRadius: widget.borderRadius,
+                onTap: widget.onTap,
+                onHighlightChanged: (v) => setState(() => _pressed = v),
+                child: Padding(padding: widget.padding, child: widget.child),
+              ),
+            )
+          : Padding(padding: widget.padding, child: widget.child),
+    );
+
+    content = AnimatedScale(
+      scale: context.reduceMotion ? 1.0 : lift,
+      duration: Motion.fast,
+      curve: Motion.enter,
+      child: content,
+    );
+
+    if (!interactive) return content;
 
     return MouseRegion(
-      cursor: interactive ? SystemMouseCursors.click : MouseCursor.defer,
-      onEnter: (_) => setState(() => _hovered = true),
+      cursor: SystemMouseCursors.click,
+      // Só mouse de verdade. O Chrome de celular emite eventos de mouse
+      // sintéticos ao tocar: o `onEnter` disparava, o `onExit` nunca vinha,
+      // e o card ficava destacado para sempre.
+      onEnter: (e) {
+        if (e.kind == PointerDeviceKind.mouse) setState(() => _hovered = true);
+      },
       onExit: (_) => setState(() => _hovered = false),
-      child: GestureDetector(
-        onTapDown: interactive ? (_) => setState(() => _pressed = true) : null,
-        onTapUp: interactive ? (_) => setState(() => _pressed = false) : null,
-        onTapCancel: interactive ? () => setState(() => _pressed = false) : null,
-        onTap: widget.onTap,
-        child: AnimatedScale(
-          scale: context.reduceMotion ? 1.0 : lift,
-          duration: Motion.fast,
-          curve: Motion.enter,
-          child: AnimatedContainer(
-            duration: Motion.fast,
-            curve: Motion.enter,
-            padding: widget.padding,
-            decoration: BoxDecoration(
-              color: widget.color ?? context.colors.surface,
-              borderRadius: widget.borderRadius,
-              border: Border.all(
-                color: _hovered && interactive
-                    ? (accent ?? AppColors.coral).withValues(alpha: 0.45)
-                    : context.colors.outline,
-                width: 1.2,
-              ),
-              boxShadow: !widget.showShadow
-                  ? null
-                  : _hovered && interactive
-                      ? AppColors.glow(accent ?? AppColors.coral, opacity: 0.18, blur: 28, y: 12)
-                      : AppColors.softShadow,
-            ),
-            child: widget.child,
-          ),
-        ),
-      ),
+      child: content,
     );
   }
 }
