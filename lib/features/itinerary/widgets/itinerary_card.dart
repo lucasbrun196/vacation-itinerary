@@ -70,8 +70,14 @@ class ItineraryCard extends ConsumerWidget {
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(Icons.place_outlined,
-                              size: 13, color: context.colors.onSurfaceVariant),
+                          // Pin cheio quando o lugar está fixado no mapa.
+                          Icon(
+                            item.hasCoords ? Icons.place_rounded : Icons.place_outlined,
+                            size: 13,
+                            color: item.hasCoords
+                                ? AppColors.sky
+                                : context.colors.onSurfaceVariant,
+                          ),
                           Gap.hXs,
                           Expanded(
                             child: Text(

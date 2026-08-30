@@ -80,14 +80,106 @@ modelo em `lib/firebase_options.dart.example` para quem preferir preencher
 Essas chaves identificam o app, não autorizam nada sozinhas: a proteção
 real são as Security Rules em `firebase/`.
 
-## Deploy na Vercel
+## Mapa
 
-`vercel.json` já está configurado com o rewrite de SPA. O build gera
-`build/web`:
+Cada atividade do roteiro pode ter um ponto marcado no mapa. A coordenada
+(`lat`/`lng`) fica **só no banco** — é ela que vai alimentar a previsão do
+tempo, que precisa de posição exata e não de nome. Na tela aparece sempre o
+nome do lugar: "Praia da Joaquina", "Rua Bocaiúva".
+
+| Peça | Serviço | Plano gratuito |
+|---|---|---|
+| Tiles do mapa | Mapbox Raster Tiles | 750 mil requisições/mês |
+| Nome ⇄ coordenada | Nominatim (OpenStreetMap) | grátis, 1 requisição/s |
+
+A geocodificação **não** é a do Mapbox de propósito: o plano gratuito de lá é o
+*temporary geocoding*, cujos termos não permitem guardar o resultado — e aqui o
+nome do lugar é gravado no Firestore.
+
+### Token do Mapbox
+
+1. Criar conta em <https://account.mapbox.com> e copiar o **token público**
+   (começa com `pk.`). A conta gratuita não pede cartão.
+2. Rodar passando o token:
 
 ```bash
-flutter build web --release
+flutter run -d web-server --web-port 5173 --dart-define=MAPBOX_TOKEN=pk.SEU_TOKEN
 ```
+
+3. Recomendado: em <https://account.mapbox.com/access-tokens>, restringir o
+   token por **URL** (`localhost:5173` e o domínio da Vercel). O token vai
+   dentro do bundle web — ele é público por natureza, e a restrição de URL é a
+   proteção de verdade.
+
+Na Vercel, criar a variável de ambiente `MAPBOX_TOKEN` e trocar o
+`buildCommand` do `vercel.json` para:
+
+```
+flutter/bin/flutter build web --release --dart-define=MAPBOX_TOKEN=$MAPBOX_TOKEN
+```
+
+Sem token nada quebra: o botão "Escolher no mapa" fica desabilitado explicando
+o que falta, e os campos "Lugar" e "Endereço" seguem sendo digitados à mão.
+
+## Deploy na Vercel
+
+O build roda por `scripts/vercel_build.sh`, que baixa o Flutter, gera as
+credenciais a partir das variáveis de ambiente e compila `build/web`. O
+`vercel.json` já aponta para ele.
+
+### 1. Variáveis de ambiente do projeto na Vercel
+
+| Variável | Onde achar |
+|---|---|
+| `MAPBOX_TOKEN` | <https://account.mapbox.com/access-tokens> (token público, `pk.`) |
+| `FIREBASE_API_KEY` | Console do Firebase → ⚙ → Configurações do projeto → Seus apps → Web |
+| `FIREBASE_APP_ID` | idem |
+| `FIREBASE_MESSAGING_SENDER_ID` | idem |
+| `FIREBASE_PROJECT_ID` | idem |
+| `FIREBASE_AUTH_DOMAIN` | idem |
+| `FIREBASE_STORAGE_BUCKET` | idem |
+
+Os mesmos valores estão no `lib/firebase_options.dart` local. Para listar:
+
+```bash
+sed -n '/static const FirebaseOptions web/,/);/p' lib/firebase_options.dart
+```
+
+`lib/firebase_options.dart` continua fora do git: na Vercel ele é **gerado no
+build**, só com o bloco web.
+
+### 2. Autorizar o domínio no Firebase Auth
+
+Console do Firebase → **Authentication** → **Settings** → **Domínios
+autorizados** → adicionar o domínio da Vercel (`seu-app.vercel.app` e o
+domínio próprio, se houver).
+
+Sem isso o login falha com `auth/unauthorized-domain` — e o app parece quebrado
+sem dizer o porquê.
+
+### 3. Restringir o token do Mapbox
+
+Em <https://account.mapbox.com/access-tokens>, limitar o token às URLs
+`http://localhost:5173` e ao domínio da Vercel. O token vai dentro do bundle:
+a restrição por URL é a proteção de verdade.
+
+### 4. Deploy
+
+```bash
+vercel --prod
+```
+
+Ou conectar o repositório no painel da Vercel — o `vercel.json` cuida do resto.
+O primeiro build demora uns minutos porque baixa o SDK do Flutter.
+
+### Build local igual ao da Vercel
+
+```bash
+flutter build web --release --dart-define=MAPBOX_TOKEN=pk.SEU_TOKEN
+```
+
+O `flutter run` na web usa o compilador de debug e é **muito** mais lento que o
+release — não julgue o desempenho do app por ele.
 
 ## Correção temporária de dependência
 

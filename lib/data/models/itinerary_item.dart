@@ -18,6 +18,8 @@ class ItineraryItem {
     this.endAt,
     this.placeName,
     this.address,
+    this.lat,
+    this.lng,
     this.transport,
     this.billId,
     this.notes,
@@ -40,9 +42,15 @@ class ItineraryItem {
   final DateTime? startAt;
   final DateTime? endAt;
 
-  /// Onde é: nome do lugar e, opcionalmente, o endereço.
+  /// Onde é: nome do lugar e, opcionalmente, o endereço. É isto — e
+  /// nunca a coordenada — que aparece para o usuário.
   final String? placeName;
   final String? address;
+
+  /// O ponto exato, escolhido no mapa. Fica só no banco: serve para a
+  /// previsão do tempo, que precisa de coordenada e não de nome.
+  final double? lat;
+  final double? lng;
 
   final TransportMode? transport;
 
@@ -58,6 +66,8 @@ class ItineraryItem {
   final DateTime? createdAt;
 
   bool get hasTime => startAt != null;
+
+  bool get hasCoords => lat != null && lng != null;
 
   bool get isLinkedToBill => billId != null && billId!.isNotEmpty;
 
@@ -86,6 +96,8 @@ class ItineraryItem {
       endAt: (d['endAt'] as Timestamp?)?.toDate(),
       placeName: d['placeName'] as String?,
       address: d['address'] as String?,
+      lat: (d['lat'] as num?)?.toDouble(),
+      lng: (d['lng'] as num?)?.toDouble(),
       transport: TransportMode.fromId(d['transport'] as String?),
       billId: d['billId'] as String?,
       notes: d['notes'] as String?,
@@ -106,6 +118,8 @@ class ItineraryItem {
         'endAt': endAt == null ? null : Timestamp.fromDate(endAt!),
         'placeName': placeName,
         'address': address,
+        'lat': lat,
+        'lng': lng,
         'transport': transport?.name,
         'billId': billId,
         'notes': notes,
@@ -126,6 +140,8 @@ class ItineraryItem {
     DateTime? endAt,
     String? placeName,
     String? address,
+    double? lat,
+    double? lng,
     TransportMode? transport,
     String? billId,
     String? notes,
@@ -135,6 +151,7 @@ class ItineraryItem {
     bool clearTime = false,
     bool clearBill = false,
     bool clearTransport = false,
+    bool clearCoords = false,
   }) =>
       ItineraryItem(
         id: id,
@@ -145,6 +162,8 @@ class ItineraryItem {
         endAt: clearTime ? null : (endAt ?? this.endAt),
         placeName: placeName ?? this.placeName,
         address: address ?? this.address,
+        lat: clearCoords ? null : (lat ?? this.lat),
+        lng: clearCoords ? null : (lng ?? this.lng),
         transport: clearTransport ? null : (transport ?? this.transport),
         billId: clearBill ? null : (billId ?? this.billId),
         notes: notes ?? this.notes,
