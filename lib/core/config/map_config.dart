@@ -22,25 +22,26 @@ abstract final class MapConfig {
   /// muda.
   static const style = 'mapbox/streets-v12';
 
-  /// Tiles raster do estilo.
+  /// Tiles raster do estilo, no esquema de 256px.
   ///
   /// Isto é a **Static Tiles API**: o plano gratuito cobre 200 mil
-  /// requisições por mês. As peças são de 512px porque as de 256
-  /// custariam quatro requisições para cobrir a mesma área — daí o
-  /// `tileDimension: 512` no [TileLayer].
+  /// requisições por mês.
   ///
-  /// Não acrescente `zoomOffset: -1` junto do `tileDimension`. O
-  /// `tileDimension` já deixa a grade um nível mais grossa; o offset
-  /// pedia a peça de um zoom acima com as coordenadas do zoom de baixo,
-  /// e a partir de certo zoom o x/y estourava o limite daquele nível e o
-  /// mapa ficava cinza.
+  /// As peças de 512px cobririam a mesma área com um quarto das
+  /// requisições, mas não combinam com o `flutter_map`: ele desenha cada
+  /// peça no tamanho do seu próprio esquema de 256px, então as de 512
+  /// saem com o dobro do tamanho — o mapa fica mais aproximado do que
+  /// deveria e as peças pedidas cobrem só um pedaço da caixa, deixando o
+  /// resto cinza. Compensar com `zoomOffset: -1` conserta a escala e
+  /// quebra as coordenadas: a partir de certo zoom o x/y estoura o limite
+  /// do nível pedido e nenhuma peça é buscada. Com 256 em todo lugar,
+  /// nada precisa ser compensado.
   ///
-  /// O `{r}` vira `@2x` em telas de alta densidade.
+  /// O `{r}` vira `@2x` em telas de alta densidade — mesma quantidade de
+  /// requisições, o dobro de resolução.
   static String get tileUrl =>
       'https://api.mapbox.com/styles/v1/$style'
-      '/tiles/512/{z}/{x}/{y}{r}?access_token=$token';
-
-  static const tileDimension = 512;
+      '/tiles/256/{z}/{x}/{y}{r}?access_token=$token';
 
   /// Identifica o app para o Mapbox e para o Nominatim.
   static const userAgent = 'com.lucasbrun.vacation_itinerary';
@@ -51,6 +52,7 @@ abstract final class MapConfig {
   static const fallbackLng = -51.925;
   static const fallbackZoom = 3.5;
 
-  /// Zoom de quando já sabemos o ponto exato.
-  static const pinZoom = 15.0;
+  /// Zoom de quando já sabemos o ponto exato. Fechado o bastante para
+  /// reconhecer a rua, aberto o bastante para saber em que bairro está.
+  static const pinZoom = 13.0;
 }

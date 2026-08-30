@@ -302,7 +302,6 @@ class _Map extends StatelessWidget {
       children: [
         TileLayer(
           urlTemplate: MapConfig.tileUrl,
-          tileDimension: MapConfig.tileDimension,
           retinaMode: RetinaMode.isHighDensity(context),
           userAgentPackageName: MapConfig.userAgent,
         ),
