@@ -23,20 +23,33 @@ abstract final class MapConfig {
   static const lightStyle = 'mapbox/light-v11';
   static const darkStyle = 'mapbox/dark-v11';
 
+  /// Satélite **com ruas e rótulos**. A imagem pura (`satellite-v9`) é
+  /// bonita e inútil para achar um endereço: sem nome de rua ninguém se
+  /// localiza.
+  static const satelliteStyle = 'mapbox/satellite-streets-v12';
+
   /// Tiles raster do estilo, na variante que combina com o tema do app.
   ///
   /// Isto é a **Static Tiles API**: o plano gratuito cobre 200 mil
   /// requisições por mês. As peças são de 512px porque as de 256
-  /// custariam quatro requisições para cobrir a mesma área — daí
-  /// `tileDimension: 512` e `zoomOffset: -1` no [TileLayer].
+  /// custariam quatro requisições para cobrir a mesma área — daí o
+  /// `tileDimension: 512` no [TileLayer].
+  ///
+  /// Não acrescente `zoomOffset: -1` junto do `tileDimension`. O
+  /// `tileDimension` já deixa a grade um nível mais grossa; o offset
+  /// pedia a peça de um zoom acima com as coordenadas do zoom de baixo,
+  /// e a partir de certo zoom o x/y estourava o limite daquele nível e o
+  /// mapa ficava cinza.
   ///
   /// O `{r}` vira `@2x` em telas de alta densidade.
-  static String tileUrl({required bool dark}) =>
-      'https://api.mapbox.com/styles/v1/${dark ? darkStyle : lightStyle}'
-      '/tiles/512/{z}/{x}/{y}{r}?access_token=$token';
+  static String tileUrl({required bool dark, required bool satellite}) {
+    // O satélite é o mesmo nos dois temas: não existe foto aérea escura.
+    final style = satellite ? satelliteStyle : (dark ? darkStyle : lightStyle);
+    return 'https://api.mapbox.com/styles/v1/$style'
+        '/tiles/512/{z}/{x}/{y}{r}?access_token=$token';
+  }
 
   static const tileDimension = 512;
-  static const tileZoomOffset = -1.0;
 
   /// Identifica o app para o Mapbox e para o Nominatim.
   static const userAgent = 'com.lucasbrun.vacation_itinerary';

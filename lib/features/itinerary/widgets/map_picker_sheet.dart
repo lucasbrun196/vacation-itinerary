@@ -62,6 +62,11 @@ class _MapPickerSheetState extends ConsumerState<MapPickerSheet> {
   bool _searching = false;
   bool _resolving = false;
 
+  /// Começa no satélite: escolhendo praia ou trilha, a foto diz mais que
+  /// o desenho. O alternador troca para o mapa quando a pessoa precisa
+  /// de nome de rua.
+  bool _satellite = true;
+
   @override
   void initState() {
     super.initState();
@@ -239,7 +244,17 @@ class _MapPickerSheetState extends ConsumerState<MapPickerSheet> {
                             center: _initialCenter,
                             zoom: _initialZoom,
                             point: _point,
+                            satellite: _satellite,
                             onTap: _onMapTap,
+                          ),
+                          Positioned(
+                            left: Gap.sm,
+                            bottom: Gap.sm,
+                            child: _LayerToggle(
+                              satellite: _satellite,
+                              onChanged: () =>
+                                  setState(() => _satellite = !_satellite),
+                            ),
                           ),
                           if (_results.isNotEmpty)
                             _Results(results: _results, onPick: _selectResult),
@@ -279,6 +294,7 @@ class _Map extends StatelessWidget {
     required this.center,
     required this.zoom,
     required this.point,
+    required this.satellite,
     required this.onTap,
   });
 
@@ -286,6 +302,7 @@ class _Map extends StatelessWidget {
   final LatLng center;
   final double zoom;
   final LatLng? point;
+  final bool satellite;
   final ValueChanged<LatLng> onTap;
 
   @override
@@ -301,11 +318,12 @@ class _Map extends StatelessWidget {
       ),
       children: [
         TileLayer(
-          // A chave força a recarga quando o tema muda de claro para escuro.
-          key: ValueKey(context.isDark),
-          urlTemplate: MapConfig.tileUrl(dark: context.isDark),
+          // A chave força a recarga quando o estilo muda; trocar só a URL
+          // deixaria na tela os tiles do estilo anterior.
+          key: ValueKey('${context.isDark}-$satellite'),
+          urlTemplate:
+              MapConfig.tileUrl(dark: context.isDark, satellite: satellite),
           tileDimension: MapConfig.tileDimension,
-          zoomOffset: MapConfig.tileZoomOffset,
           retinaMode: RetinaMode.isHighDensity(context),
           userAgentPackageName: MapConfig.userAgent,
         ),
@@ -332,6 +350,47 @@ class _Map extends StatelessWidget {
           ],
         ),
       ],
+    );
+  }
+}
+
+/// Alternador entre satélite e mapa, no canto de baixo à esquerda — o
+/// canto direito é da atribuição do Mapbox.
+class _LayerToggle extends StatelessWidget {
+  const _LayerToggle({required this.satellite, required this.onChanged});
+
+  final bool satellite;
+  final VoidCallback onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: context.colors.surface.withValues(alpha: 0.92),
+      borderRadius: Radii.brPill,
+      elevation: 3,
+      child: InkWell(
+        borderRadius: Radii.brPill,
+        onTap: onChanged,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: Gap.md, vertical: Gap.sm),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                satellite ? Icons.map_outlined : Icons.satellite_alt_rounded,
+                size: 16,
+                color: context.colors.onSurface,
+              ),
+              Gap.hSm,
+              // O rótulo diz para onde vai, não onde está.
+              Text(
+                satellite ? 'Mapa' : 'Satélite',
+                style: context.text.labelMedium?.copyWith(fontWeight: FontWeight.w600),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
