@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../features/account/screens/account_screen.dart';
 import '../features/auth/screens/auth_screen.dart';
 import '../features/auth/screens/splash_screen.dart';
 import '../features/board/screens/board_screen.dart';
@@ -20,6 +21,7 @@ abstract final class Routes {
   static const splash = '/carregando';
   static const auth = '/entrar';
   static const trips = '/viagens';
+  static const account = '/conta';
 
   static String trip(String tripId) => '/viagem/$tripId';
   static String tripSection(String tripId, AppDestination d) => '/viagem/$tripId/${d.path}';
@@ -70,6 +72,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: Routes.trips,
         pageBuilder: (context, state) => const NoTransitionPage(child: TripsScreen()),
+      ),
+      // Fora do ShellRoute: a conta não pertence a viagem nenhuma.
+      GoRoute(
+        path: Routes.account,
+        pageBuilder: (context, state) => const NoTransitionPage(child: AccountScreen()),
       ),
       // ShellRoute, e não StatefulShellRoute: o go_router não aceita
       // parâmetro de rota na raiz de um branch, e aqui o `tripId` é

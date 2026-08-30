@@ -82,5 +82,49 @@ class AuthService {
     }
   }
 
+  /// Confirma a identidade com a senha atual.
+  ///
+  /// Trocar a senha e excluir a conta são operações sensíveis: o Firebase
+  /// só as aceita com login recente. Reautenticar antes evita depender de
+  /// quanto tempo faz que a pessoa entrou.
+  Future<void> reauthenticate(String password) async {
+    final user = _auth.currentUser;
+    final email = user?.email;
+    if (user == null || email == null) {
+      throw const AuthFailure('Faça login de novo para concluir essa ação.');
+    }
+
+    try {
+      await user.reauthenticateWithCredential(
+        EmailAuthProvider.credential(email: email, password: password),
+      );
+    } on FirebaseAuthException catch (e) {
+      // Aqui o e-mail é o da sessão, então "e-mail ou senha incorretos"
+      // só confundiria: o que pode estar errado é a senha.
+      if (e.code == 'wrong-password' || e.code == 'invalid-credential') {
+        throw const AuthFailure('Senha atual incorreta.');
+      }
+      throw AuthFailure.fromCode(e.code);
+    }
+  }
+
+  Future<void> updatePassword(String newPassword) async {
+    try {
+      await _auth.currentUser!.updatePassword(newPassword);
+    } on FirebaseAuthException catch (e) {
+      throw AuthFailure.fromCode(e.code);
+    }
+  }
+
+  /// Apaga a conta do Auth. Os dados no Firestore precisam ter sido
+  /// removidos antes — depois disso não há mais permissão para escrever.
+  Future<void> deleteAccount() async {
+    try {
+      await _auth.currentUser!.delete();
+    } on FirebaseAuthException catch (e) {
+      throw AuthFailure.fromCode(e.code);
+    }
+  }
+
   Future<void> signOut() => _auth.signOut();
 }

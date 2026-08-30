@@ -14,15 +14,25 @@ class AppPage extends StatelessWidget {
     required this.children,
     this.subtitle,
     this.emoji,
+    this.leading,
     this.action,
     this.floatingActionButton,
+    this.backgroundColor,
     this.bottomSlivers = const [],
   });
 
   final String title;
   final String? subtitle;
   final String? emoji;
+
+  /// Antes do título — em geral um botão de voltar.
+  final Widget? leading;
   final Widget? action;
+
+  /// Transparente por padrão, porque a página costuma viver dentro do
+  /// `Scaffold` da casca da viagem. Telas montadas no Navigator raiz
+  /// precisam pintar o próprio fundo.
+  final Color? backgroundColor;
   final List<Widget> children;
   final List<Widget> bottomSlivers;
   final Widget? floatingActionButton;
@@ -32,7 +42,7 @@ class AppPage extends StatelessWidget {
     final topPad = context.isMobile ? Gap.lg : Gap.xxl;
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
+      backgroundColor: backgroundColor ?? Colors.transparent,
       floatingActionButton: floatingActionButton,
       body: SafeArea(
         bottom: false,
@@ -45,6 +55,7 @@ class AppPage extends StatelessWidget {
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
+                      if (leading != null) ...[leading!, Gap.hSm],
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,

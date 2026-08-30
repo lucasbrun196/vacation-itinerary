@@ -31,6 +31,15 @@ class TripRepository {
           return (b.createdAt ?? DateTime(0)).compareTo(a.createdAt ?? DateTime(0));
         }));
 
+  /// As viagens da pessoa em uma leitura só.
+  ///
+  /// A tela de conta precisa da lista fora do escopo de uma viagem e sem
+  /// depender de o stream já estar quente.
+  Future<List<Trip>> myTripsOnce(String uid) async {
+    final snap = await _refs.tripsOf(uid).get();
+    return snap.docs.map(Trip.fromDoc).toList();
+  }
+
   Stream<Trip?> watchTrip(String tripId) => _refs
       .trip(tripId)
       .snapshots()
@@ -157,4 +166,30 @@ class TripRepository {
 
   Future<void> updateMember(String tripId, Member member) =>
       _refs.members(tripId).doc(member.id).set(member.toMap(), SetOptions(merge: true));
+
+  /// Copia nome e emoji do perfil para o membro em todas as viagens.
+  ///
+  /// Nome e emoji são denormalizados em cada `members/{uid}` — é o que
+  /// deixa a lista de participantes ler sem buscar conta por conta. Sem
+  /// esta cópia, mudar o perfil não apareceria em viagem nenhuma.
+  /// `set` com merge, e não `update`: uma viagem sem o documento de
+  /// membro não derruba o lote inteiro.
+  Future<void> syncMemberProfile({
+    required String uid,
+    required String name,
+    required String emoji,
+  }) async {
+    final snap = await _refs.tripsOf(uid).get();
+    if (snap.docs.isEmpty) return;
+
+    final batch = _refs.db.batch();
+    for (final doc in snap.docs) {
+      batch.set(
+        _refs.members(doc.id).doc(uid),
+        {'name': name, 'emoji': emoji},
+        SetOptions(merge: true),
+      );
+    }
+    await batch.commit();
+  }
 }

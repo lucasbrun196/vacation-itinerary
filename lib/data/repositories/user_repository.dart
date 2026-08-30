@@ -58,4 +58,7 @@ class UserRepository {
         'displayName': ?displayName,
         'emoji': ?emoji,
       }, SetOptions(merge: true));
+
+  /// Apaga o espelho da conta, na exclusão do cadastro.
+  Future<void> deleteUser(String uid) => _refs.user(uid).delete();
 }

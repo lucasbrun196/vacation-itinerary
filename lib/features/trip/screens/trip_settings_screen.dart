@@ -549,6 +549,7 @@ class _AccountCard extends ConsumerWidget {
     final user = ref.watch(currentUserProvider).valueOrNull;
 
     return GlassCard(
+      onTap: () => context.push(Routes.account),
       child: Row(
         children: [
           Container(
@@ -573,14 +574,19 @@ class _AccountCard extends ConsumerWidget {
                   style: context.text.bodySmall,
                   overflow: TextOverflow.ellipsis,
                 ),
+                Text(
+                  'Perfil, senha e cadastro',
+                  style: context.text.labelSmall,
+                ),
               ],
             ),
           ),
-          TextButton.icon(
+          IconButton(
+            tooltip: 'Sair da conta',
             onPressed: () => ref.read(authServiceProvider).signOut(),
-            icon: const Icon(Icons.logout_rounded, size: 17),
-            label: const Text('Sair'),
+            icon: const Icon(Icons.logout_rounded, size: 18),
           ),
+          Icon(Icons.chevron_right_rounded, color: AppColors.inkFaint),
         ],
       ),
     );

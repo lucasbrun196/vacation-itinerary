@@ -59,11 +59,15 @@ service cloud.firestore {
                     && request.resource.data.memberIds == [uid()];
 
       // Todo participante edita os dados da viagem. Mudar a lista de
-      // participantes ou passar a viagem para outro dono, só o admin.
+      // participantes ou passar a viagem para outro dono, só o admin —
+      // com uma exceção: qualquer pessoa se remove da lista, que é o que
+      // sustenta "sair desta viagem" e a exclusão da conta.
       allow update: if isMember(tripId)
                     && request.resource.data.adminId == resource.data.adminId
                     && (request.resource.data.memberIds == resource.data.memberIds
-                        || isTripAdmin(tripId));
+                        || isTripAdmin(tripId)
+                        || request.resource.data.memberIds
+                           == resource.data.memberIds.removeAll([uid()]));
 
       allow delete: if isTripAdmin(tripId);
 

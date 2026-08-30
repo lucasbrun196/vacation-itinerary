@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/providers.dart';
+import '../../../app/router.dart';
 import '../../../core/extensions/context_ext.dart';
 import '../../../core/responsive/responsive.dart';
 import '../../../core/theme/app_colors.dart';
@@ -235,11 +236,18 @@ class _TripCard extends ConsumerWidget {
 }
 
 /// Avatar com menu de conta e sair.
-class _AccountButton extends ConsumerWidget {
+class _AccountButton extends ConsumerStatefulWidget {
   const _AccountButton();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_AccountButton> createState() => _AccountButtonState();
+}
+
+class _AccountButtonState extends ConsumerState<_AccountButton> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
     final user = ref.watch(currentUserProvider).valueOrNull;
 
     return PopupMenuButton<String>(
@@ -247,7 +255,9 @@ class _AccountButton extends ConsumerWidget {
       offset: const Offset(0, 48),
       shape: const RoundedRectangleBorder(borderRadius: Radii.brMd),
       onSelected: (value) async {
-        if (value == 'sair') {
+        if (value == 'conta') {
+          context.push(Routes.account);
+        } else if (value == 'sair') {
           await ref.read(authServiceProvider).signOut();
         }
       },
@@ -265,6 +275,16 @@ class _AccountButton extends ConsumerWidget {
         ),
         const PopupMenuDivider(),
         const PopupMenuItem(
+          value: 'conta',
+          child: Row(
+            children: [
+              Icon(Icons.manage_accounts_outlined, size: 18),
+              SizedBox(width: Gap.md),
+              Text('Minha conta'),
+            ],
+          ),
+        ),
+        const PopupMenuItem(
           value: 'sair',
           child: Row(
             children: [
@@ -275,16 +295,37 @@ class _AccountButton extends ConsumerWidget {
           ),
         ),
       ],
-      child: Container(
-        width: 46,
-        height: 46,
-        decoration: BoxDecoration(
-          color: AppColors.turquoise.withValues(alpha: 0.16),
-          shape: BoxShape.circle,
-          border: Border.all(color: AppColors.turquoise.withValues(alpha: 0.4)),
+      // O `PopupMenuButton` embrulha o filho em um `InkWell`, que sem
+      // isto desenha um quadrado atrás do avatar redondo. Com o raio
+      // pílula o realce acompanha o círculo; o resto do efeito é nosso,
+      // no mesmo idioma do `GlassCard`.
+      borderRadius: Radii.brPill,
+      child: MouseRegion(
+        onEnter: (_) => setState(() => _hovered = true),
+        onExit: (_) => setState(() => _hovered = false),
+        child: AnimatedScale(
+          scale: context.reduceMotion || !_hovered ? 1.0 : 1.06,
+          duration: Motion.fast,
+          curve: Motion.enter,
+          child: AnimatedContainer(
+            duration: Motion.fast,
+            curve: Motion.enter,
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              color: AppColors.turquoise.withValues(alpha: _hovered ? 0.24 : 0.16),
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: AppColors.turquoise.withValues(alpha: _hovered ? 0.7 : 0.4),
+              ),
+              boxShadow: _hovered
+                  ? AppColors.glow(AppColors.turquoise, opacity: 0.22, blur: 20, y: 6)
+                  : null,
+            ),
+            alignment: Alignment.center,
+            child: Text(user?.emoji ?? '🙂', style: const TextStyle(fontSize: 20)),
+          ),
         ),
-        alignment: Alignment.center,
-        child: Text(user?.emoji ?? '🙂', style: const TextStyle(fontSize: 20)),
       ),
     );
   }
