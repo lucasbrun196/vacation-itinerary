@@ -71,10 +71,13 @@ class AttachmentThumb extends StatelessWidget {
                   ),
           ),
         ),
+        // Ação irreversível: o alvo precisa caber num polegar. Fica **dentro**
+        // dos limites do thumb — em `top/right` negativos a área de toque
+        // podia cair fora do pai e simplesmente não responder.
         if (onDelete != null)
           Positioned(
-            top: -6,
-            right: -6,
+            top: 0,
+            right: 0,
             child: Material(
               color: context.colors.surface,
               shape: const CircleBorder(),
@@ -82,9 +85,14 @@ class AttachmentThumb extends StatelessWidget {
               child: InkWell(
                 customBorder: const CircleBorder(),
                 onTap: onDelete,
-                child: const Padding(
-                  padding: EdgeInsets.all(3),
-                  child: Icon(Icons.close_rounded, size: 14, color: AppColors.danger),
+                child: const SizedBox(
+                  width: 34,
+                  height: 34,
+                  child: Icon(
+                    Icons.close_rounded,
+                    size: 18,
+                    color: AppColors.danger,
+                  ),
                 ),
               ),
             ),
