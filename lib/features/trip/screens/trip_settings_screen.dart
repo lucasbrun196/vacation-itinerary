@@ -59,7 +59,7 @@ class TripSettingsScreen extends ConsumerWidget {
                   icon: Icons.date_range_rounded,
                   label: 'Datas',
                   value: trip.hasDates
-                      ? '${Fmt.dateShort(trip.startDate!)} — ${Fmt.dateWithYear(trip.endDate!)}'
+                      ? Fmt.dateRange(trip.startDate!, trip.endDate!)
                       : 'não definidas',
                 ),
                 _Row(
@@ -269,8 +269,12 @@ class _Row extends StatelessWidget {
           Icon(icon, size: 17, color: context.colors.onSurfaceVariant),
           Gap.hMd,
           Text(label, style: context.text.bodySmall),
-          const Spacer(),
-          Flexible(
+          Gap.hMd,
+          // `Expanded` e não `Spacer` + `Flexible`: com os dois flexíveis
+          // o espaço livre era dividido entre eles, e cada valor parava
+          // num ponto diferente conforme o tamanho do texto. Assim todos
+          // terminam na mesma margem.
+          Expanded(
             child: Text(
               value,
               style: context.text.titleSmall,

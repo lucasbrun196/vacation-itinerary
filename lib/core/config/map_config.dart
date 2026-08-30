@@ -15,17 +15,33 @@ abstract final class MapConfig {
 
   static bool get isConfigured => token.isNotEmpty;
 
-  /// Estilo raster do Mapbox — o plano gratuito cobre 750 mil
-  /// requisições de tile por mês.
+  /// Estilo do mapa, no formato `usuario/estilo`.
   ///
-  /// O `{r}` vira `@2x` em telas de alta densidade; as peças são de
-  /// 512px, daí `tileDimension: 512` e `zoomOffset: -1` no [TileLayer].
-  static String get tileUrl =>
-      'https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/512/{z}/{x}/{y}{r}'
-      '?access_token=$token';
+  /// Para usar um estilo próprio feito no Mapbox Studio, é só trocar esta
+  /// constante pelo id de lá (`seu-usuario/clx...`). O resto do app não
+  /// muda.
+  static const style = 'mapbox/streets-v12';
 
-  static const tileDimension = 512;
-  static const tileZoomOffset = -1.0;
+  /// Tiles raster do estilo, no esquema de 256px.
+  ///
+  /// Isto é a **Static Tiles API**: o plano gratuito cobre 200 mil
+  /// requisições por mês.
+  ///
+  /// As peças de 512px cobririam a mesma área com um quarto das
+  /// requisições, mas não combinam com o `flutter_map`: ele desenha cada
+  /// peça no tamanho do seu próprio esquema de 256px, então as de 512
+  /// saem com o dobro do tamanho — o mapa fica mais aproximado do que
+  /// deveria e as peças pedidas cobrem só um pedaço da caixa, deixando o
+  /// resto cinza. Compensar com `zoomOffset: -1` conserta a escala e
+  /// quebra as coordenadas: a partir de certo zoom o x/y estoura o limite
+  /// do nível pedido e nenhuma peça é buscada. Com 256 em todo lugar,
+  /// nada precisa ser compensado.
+  ///
+  /// O `{r}` vira `@2x` em telas de alta densidade — mesma quantidade de
+  /// requisições, o dobro de resolução.
+  static String get tileUrl =>
+      'https://api.mapbox.com/styles/v1/$style'
+      '/tiles/256/{z}/{x}/{y}{r}?access_token=$token';
 
   /// Identifica o app para o Mapbox e para o Nominatim.
   static const userAgent = 'com.lucasbrun.vacation_itinerary';
@@ -36,6 +52,7 @@ abstract final class MapConfig {
   static const fallbackLng = -51.925;
   static const fallbackZoom = 3.5;
 
-  /// Zoom de quando já sabemos o ponto exato.
-  static const pinZoom = 15.0;
+  /// Zoom de quando já sabemos o ponto exato. Fechado o bastante para
+  /// reconhecer a rua, aberto o bastante para saber em que bairro está.
+  static const pinZoom = 13.0;
 }

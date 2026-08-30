@@ -16,6 +16,14 @@ abstract final class Fmt {
   static String dateShort(DateTime d) => DateFormat('dd/MM', 'pt_BR').format(d);
   static String dateFull(DateTime d) => DateFormat("EEEE, d 'de' MMMM", 'pt_BR').format(d);
   static String dateWithYear(DateTime d) => DateFormat("d 'de' MMM 'de' y", 'pt_BR').format(d);
+  static String dateShortWithYear(DateTime d) => DateFormat('dd/MM/y', 'pt_BR').format(d);
+
+  /// Período de datas, com as duas pontas no mesmo formato.
+  ///
+  /// O ano aparece nos dois lados de propósito: viagem de fim de ano
+  /// atravessa o réveillon, e "27/12 — 03/01" esconde justamente isso.
+  static String dateRange(DateTime start, DateTime end) =>
+      '${dateShortWithYear(start)} — ${dateShortWithYear(end)}';
   static String weekday(DateTime d) => DateFormat('EEEE', 'pt_BR').format(d);
   static String weekdayShort(DateTime d) => DateFormat('E', 'pt_BR').format(d).replaceAll('.', '');
   static String monthShort(DateTime d) => DateFormat('MMM', 'pt_BR').format(d).replaceAll('.', '');

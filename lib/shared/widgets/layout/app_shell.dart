@@ -295,10 +295,13 @@ class _NavItemState extends State<_NavItem> {
               vertical: Gap.md,
             ),
             decoration: BoxDecoration(
+              // O hover é a mesma cor do destino, só que mais fraca. Com
+              // um cinza neutro aqui, passar o mouse e clicar davam duas
+              // cores diferentes, e a troca parecia um defeito.
               color: selected
                   ? d.color.withValues(alpha: 0.12)
                   : _hovered
-                      ? context.colors.surfaceContainerHigh
+                      ? d.color.withValues(alpha: 0.06)
                       : Colors.transparent,
               borderRadius: Radii.brMd,
             ),
