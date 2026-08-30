@@ -150,6 +150,10 @@ class _MapPickerSheetState extends ConsumerState<MapPickerSheet> {
       _point = point;
       _results = const [];
       _resolving = true;
+      // O endereço era do ponto anterior. Some junto com ele: se a
+      // geocodificação falhar, é melhor ficar sem endereço do que
+      // mostrar o de outro lugar.
+      _address = null;
     });
 
     final place = await ref.read(geocodingServiceProvider).reverse(

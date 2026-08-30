@@ -137,7 +137,10 @@ class _ItineraryFormSheetState extends ConsumerState<ItineraryFormSheet> {
       _lat = place.lat;
       _lng = place.lng;
       _placeController.text = place.name;
-      if (place.address != null) _addressController.text = place.address!;
+      // Sempre sobrescreve: o endereço que estava aqui era do ponto
+      // antigo, e manter o antigo ao lado de um ponto novo é pior do que
+      // deixar o campo vazio para a pessoa preencher.
+      _addressController.text = place.address ?? '';
     });
   }
 
