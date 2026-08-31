@@ -64,8 +64,13 @@ class MoneyField extends StatelessWidget {
       autofocus: autofocus,
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
       inputFormatters: [_CentsInputFormatter()],
+      // 30px no celular estoura o campo já em sete dígitos, e o `R$` some
+      // rolando para fora. Em tela estreita o número entra menor.
       style: big
-          ? AppTypography.money(size: 30, color: context.colors.onSurface)
+          ? AppTypography.money(
+              size: context.isNarrow ? 24 : 30,
+              color: context.colors.onSurface,
+            )
           : AppTypography.money(size: 17, color: context.colors.onSurface),
       decoration: InputDecoration(
         labelText: label,

@@ -255,17 +255,25 @@ class _BillHeader extends ConsumerWidget {
             Gap.vSm,
             Row(
               children: [
-                Text(
-                  summary.isSettled
-                      ? 'Tudo quitado 🎉'
-                      : '${Money.format(summary.pendingCents)} em aberto',
-                  style: context.text.bodySmall?.copyWith(color: Colors.white),
+                Flexible(
+                  child: Text(
+                    summary.isSettled
+                        ? 'Tudo quitado 🎉'
+                        : '${Money.format(summary.pendingCents)} em aberto',
+                    style: context.text.bodySmall?.copyWith(color: Colors.white),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
                 const Spacer(),
                 if (owner != null)
-                  Text(
-                    '${owner.shortName} bancou',
-                    style: context.text.bodySmall?.copyWith(color: Colors.white70),
+                  Flexible(
+                    child: Text(
+                      '${owner.shortName} bancou',
+                      style: context.text.bodySmall?.copyWith(color: Colors.white70),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
               ],
             ),
@@ -371,7 +379,16 @@ class _MemberShareCard extends ConsumerWidget {
                   children: [
                     Row(
                       children: [
-                        Text(member?.shortName ?? memberId, style: context.text.titleMedium),
+                        // Sem `Flexible` o nome estoura a faixa — e o
+                        // fallback aqui é o uid, com 28 caracteres.
+                        Flexible(
+                          child: Text(
+                            member?.shortName ?? memberId,
+                            style: context.text.titleMedium,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
                         if (isMe) ...[
                           Gap.hSm,
                           Container(
@@ -587,51 +604,107 @@ class _EntryTile extends ConsumerWidget {
       onTap: bill.status == BillStatus.settled
           ? null
           : () => showEntryForm(context, bill: bill, entry: entry),
-      child: Row(
-        children: [
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: bill.category.color.withValues(alpha: 0.12),
-              borderRadius: Radii.brSm,
-            ),
-            child: Icon(bill.category.icon, size: 18, color: bill.category.color),
-          ),
-          Gap.hMd,
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(entry.description, style: context.text.titleSmall),
-                Text(Fmt.dateWithYear(entry.date), style: context.text.bodySmall),
-              ],
-            ),
-          ),
-          if (entry.receipts.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(right: Gap.sm),
-              child: IconButton(
-                tooltip: 'Comprovante',
-                onPressed: () => openAttachment(context, entry.receipts.first),
-                icon: const Icon(Icons.receipt_long_rounded, size: 18),
-              ),
-            ),
-          Text(
-            Money.format(entry.amountCents),
-            style: AppTypography.money(size: 16, color: context.colors.onSurface),
-          ),
-          if (bill.status != BillStatus.settled)
-            IconButton(
-              tooltip: 'Excluir lançamento',
-              onPressed: () => ref
-                  .read(billRepositoryProvider)
-                  .deleteEntry(ref.read(currentTripIdProvider), entry),
-              icon: const Icon(Icons.close_rounded, size: 16),
-            ),
-        ],
+      child: _EntryTileBody(bill: bill, entry: entry, ref: ref),
+    );
+  }
+}
+
+/// O corpo do lançamento.
+///
+/// No celular, ícone + descrição + comprovante + valor + excluir na mesma
+/// linha deixavam ~40px para a descrição, que quebrava em cinco linhas de
+/// duas letras. Em tela estreita as ações descem para uma segunda linha.
+class _EntryTileBody extends StatelessWidget {
+  const _EntryTileBody({required this.bill, required this.entry, required this.ref});
+
+  final Bill bill;
+  final BillEntry entry;
+  final WidgetRef ref;
+
+  @override
+  Widget build(BuildContext context) {
+    final receipt = entry.receipts.isEmpty
+        ? null
+        : IconButton(
+            tooltip: 'Comprovante',
+            onPressed: () => openAttachment(context, entry.receipts.first),
+            icon: const Icon(Icons.receipt_long_rounded, size: 18),
+          );
+
+    final delete = bill.status == BillStatus.settled
+        ? null
+        : IconButton(
+            tooltip: 'Excluir lançamento',
+            onPressed: () => ref
+                .read(billRepositoryProvider)
+                .deleteEntry(ref.read(currentTripIdProvider), entry),
+            icon: const Icon(Icons.close_rounded, size: 16),
+          );
+
+    final amount = Text(
+      Money.format(entry.amountCents),
+      style: AppTypography.money(size: 16, color: context.colors.onSurface),
+    );
+
+    final icon = Container(
+      width: 38,
+      height: 38,
+      decoration: BoxDecoration(
+        color: bill.category.color.withValues(alpha: 0.12),
+        borderRadius: Radii.brSm,
       ),
+      child: Icon(bill.category.icon, size: 18, color: bill.category.color),
+    );
+
+    final label = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          entry.description,
+          style: context.text.titleSmall,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+        Text(Fmt.dateWithYear(entry.date), style: context.text.bodySmall),
+      ],
+    );
+
+    if (!context.isNarrow) {
+      return Row(
+        children: [
+          icon,
+          Gap.hMd,
+          Expanded(child: label),
+          if (receipt != null) Padding(
+            padding: const EdgeInsets.only(right: Gap.sm),
+            child: receipt,
+          ),
+          amount,
+          ?delete,
+        ],
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          children: [
+            icon,
+            Gap.hMd,
+            Expanded(child: label),
+            Gap.hSm,
+            amount,
+          ],
+        ),
+        if (receipt != null || delete != null)
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [?receipt, ?delete],
+          ),
+      ],
     );
   }
 }

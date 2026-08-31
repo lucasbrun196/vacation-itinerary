@@ -161,7 +161,9 @@ class _Timeline extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 58,
+      // A coluna do horário come 58px fixos — 21% da largura útil no celular,
+      // e é o que aperta os chips do card. Em tela estreita ela encolhe.
+      width: context.isNarrow ? 44 : 58,
       child: Column(
         children: [
           SizedBox(

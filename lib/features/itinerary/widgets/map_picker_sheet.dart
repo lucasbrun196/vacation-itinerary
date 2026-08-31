@@ -18,25 +18,71 @@ import '../../../shared/widgets/layout/app_sheet.dart';
 /// Abre o mapa para escolher um ponto e devolve o lugar escolhido, ou
 /// `null` se a pessoa desistir.
 ///
-/// Sai obrigatoriamente por [showAppSheet]: o mapa é montado no overlay
-/// do Navigator raiz, fora do escopo da viagem, e é o `showAppSheet` que
-/// reembrulha o `ProviderContainer` de quem abriu.
+/// No celular vira uma página de tela cheia; do tablet para cima continua
+/// sendo o diálogo do [showAppSheet]. A diferença não é estética: dentro de
+/// um sheet rolável o mapa registra os próprios reconhecedores de arraste e
+/// ganha a arena de gestos, então arrastar o dedo sobre ele não rolava o
+/// formulário nem fechava o sheet. Sem scroll externo, o conflito some.
+///
+/// Nos dois caminhos o `ProviderContainer` de quem abriu é reembrulhado: o
+/// mapa é montado no overlay do Navigator raiz, fora do escopo da viagem.
 Future<PickedPlace?> showMapPicker(
   BuildContext context, {
   PickedPlace? initial,
-}) =>
-    showAppSheet<PickedPlace>(
+}) {
+  if (!context.isMobile) {
+    return showAppSheet<PickedPlace>(
       context: context,
       title: 'Onde é?',
       subtitle: 'Busque ou toque no mapa para marcar o ponto',
       maxWidth: 640,
       builder: (_) => MapPickerSheet(initial: initial),
     );
+  }
 
-class MapPickerSheet extends ConsumerStatefulWidget {
-  const MapPickerSheet({super.key, this.initial});
+  final container = ProviderScope.containerOf(context);
+  return Navigator.of(context, rootNavigator: true).push<PickedPlace>(
+    MaterialPageRoute(
+      fullscreenDialog: true,
+      builder: (_) => UncontrolledProviderScope(
+        container: container,
+        child: _MapPickerPage(initial: initial),
+      ),
+    ),
+  );
+}
+
+/// O seletor em tela cheia, usado no celular.
+class _MapPickerPage extends StatelessWidget {
+  const _MapPickerPage({this.initial});
 
   final PickedPlace? initial;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Onde é?'),
+        leading: IconButton(
+          icon: const Icon(Icons.close_rounded),
+          tooltip: 'Fechar',
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+      ),
+      body: SafeArea(
+        child: MapPickerSheet(initial: initial, fullscreen: true),
+      ),
+    );
+  }
+}
+
+class MapPickerSheet extends ConsumerStatefulWidget {
+  const MapPickerSheet({super.key, this.initial, this.fullscreen = false});
+
+  final PickedPlace? initial;
+
+  /// Sem scroll externo: o mapa ocupa toda a altura que sobrar.
+  final bool fullscreen;
 
   @override
   ConsumerState<MapPickerSheet> createState() => _MapPickerSheetState();
@@ -233,9 +279,118 @@ class _MapPickerSheetState extends ConsumerState<MapPickerSheet>
     );
   }
 
+  Widget _searchField() {
+    return TextField(
+      controller: _searchController,
+      autofocus: !context.isMobile,
+      textInputAction: TextInputAction.search,
+      onChanged: _onSearchChanged,
+      onSubmitted: _runSearch,
+      decoration: InputDecoration(
+        labelText: 'Buscar',
+        hintText: 'Praia da Joaquina, Rua Bocaiúva...',
+        prefixIcon: const Icon(Icons.search_rounded, size: 20),
+        suffixIcon: _searching
+            ? const Padding(
+                padding: EdgeInsets.all(Gap.md),
+                child: SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2.2),
+                ),
+              )
+            : null,
+      ),
+    );
+  }
+
+  /// O mapa com os controles por cima. Com [height] nulo ele preenche o que
+  /// o pai der — é o que a página de tela cheia faz.
+  Widget _mapPanel({double? height}) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: Radii.brMd,
+        border: Border.all(color: context.colors.outline),
+        boxShadow: [
+          BoxShadow(
+            color: context.colors.shadow.withValues(alpha: 0.10),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: Radii.brMd,
+        child: SizedBox(
+          height: height,
+          child: Stack(
+            children: [
+              _Map(
+                controller: _mapController,
+                center: _startCenter,
+                zoom: _startZoom,
+                point: _point,
+                onTap: _onMapTap,
+                onGestureStart: _zoomAnimation.stop,
+              ),
+              Positioned(
+                left: Gap.sm,
+                bottom: Gap.sm,
+                child: _ZoomButtons(
+                  onZoomIn: () => _zoomBy(1),
+                  onZoomOut: () => _zoomBy(-1),
+                ),
+              ),
+              if (_results.isNotEmpty)
+                _Results(results: _results, onPick: _selectResult),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _selection() => _Selection(
+        controller: _nameController,
+        address: _address,
+        hasPoint: _point != null,
+        resolving: _resolving,
+        onNameChanged: (_) => setState(() {}),
+      );
+
+  Widget _actions() => SheetActions(
+        primaryLabel: 'Usar este lugar',
+        onPrimary: _canConfirm ? _confirm : null,
+        secondaryLabel: 'Cancelar',
+        onSecondary: () => Navigator.of(context).pop(),
+      );
+
   @override
   Widget build(BuildContext context) {
-    final mapHeight = context.isMobile ? 300.0 : 360.0;
+    if (widget.fullscreen) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.md, Gap.lg, Gap.md),
+            child: _searchField(),
+          ),
+          // Sem altura fixa e sem scroll em volta: o mapa fica com tudo o que
+          // sobrar, e encolhe sozinho quando o teclado abre.
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: Gap.lg),
+              child: _mapPanel(),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.md, Gap.lg, 0),
+            child: _selection(),
+          ),
+          _actions(),
+        ],
+      );
+    }
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -246,87 +401,16 @@ class _MapPickerSheetState extends ConsumerState<MapPickerSheet>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                TextField(
-                  controller: _searchController,
-                  autofocus: !context.isMobile,
-                  textInputAction: TextInputAction.search,
-                  onChanged: _onSearchChanged,
-                  onSubmitted: _runSearch,
-                  decoration: InputDecoration(
-                    labelText: 'Buscar',
-                    hintText: 'Praia da Joaquina, Rua Bocaiúva...',
-                    prefixIcon: const Icon(Icons.search_rounded, size: 20),
-                    suffixIcon: _searching
-                        ? const Padding(
-                            padding: EdgeInsets.all(Gap.md),
-                            child: SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2.2),
-                            ),
-                          )
-                        : null,
-                  ),
-                ),
+                _searchField(),
                 Gap.vMd,
-                DecoratedBox(
-                  decoration: BoxDecoration(
-                    borderRadius: Radii.brMd,
-                    border: Border.all(color: context.colors.outline),
-                    boxShadow: [
-                      BoxShadow(
-                        color: context.colors.shadow.withValues(alpha: 0.10),
-                        blurRadius: 18,
-                        offset: const Offset(0, 6),
-                      ),
-                    ],
-                  ),
-                  child: ClipRRect(
-                    borderRadius: Radii.brMd,
-                    child: SizedBox(
-                      height: mapHeight,
-                      child: Stack(
-                        children: [
-                          _Map(
-                            controller: _mapController,
-                            center: _startCenter,
-                            zoom: _startZoom,
-                            point: _point,
-                            onTap: _onMapTap,
-                          ),
-                          Positioned(
-                            left: Gap.sm,
-                            bottom: Gap.sm,
-                            child: _ZoomButtons(
-                              onZoomIn: () => _zoomBy(1),
-                              onZoomOut: () => _zoomBy(-1),
-                            ),
-                          ),
-                          if (_results.isNotEmpty)
-                            _Results(results: _results, onPick: _selectResult),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
+                _mapPanel(height: 360),
                 Gap.vMd,
-                _Selection(
-                  controller: _nameController,
-                  address: _address,
-                  hasPoint: _point != null,
-                  resolving: _resolving,
-                  onNameChanged: (_) => setState(() {}),
-                ),
+                _selection(),
               ],
             ),
           ),
         ),
-        SheetActions(
-          primaryLabel: 'Usar este lugar',
-          onPrimary: _canConfirm ? _confirm : null,
-          secondaryLabel: 'Cancelar',
-          onSecondary: () => Navigator.of(context).pop(),
-        ),
+        _actions(),
       ],
     );
   }
@@ -341,6 +425,7 @@ class _Map extends StatelessWidget {
     required this.zoom,
     required this.point,
     required this.onTap,
+    required this.onGestureStart,
   });
 
   final MapController controller;
@@ -348,6 +433,9 @@ class _Map extends StatelessWidget {
   final double zoom;
   final LatLng? point;
   final ValueChanged<LatLng> onTap;
+
+  /// Encosta o dedo no mapa: a animação de zoom para de disputar a câmera.
+  final VoidCallback onGestureStart;
 
   @override
   Widget build(BuildContext context) {
@@ -359,6 +447,13 @@ class _Map extends StatelessWidget {
         minZoom: _minZoom,
         maxZoom: _maxZoom,
         onTap: (_, latLng) => onTap(latLng),
+        onPointerDown: (_, _) => onGestureStart(),
+        // Sem tirar a rotação, uma pinça meio torta no celular gira o mapa —
+        // e não há como voltar ao norte: `move` preserva a rotação e não
+        // existe bússola aqui.
+        interactionOptions: const InteractionOptions(
+          flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
+        ),
       ),
       children: [
         TileLayer(
@@ -450,9 +545,11 @@ class _ZoomButton extends StatelessWidget {
       message: tooltip,
       child: InkWell(
         onTap: onPressed,
+        // 36px é menos que o mínimo para um polegar, e os dois botões ficam
+        // colados um no outro: errar o de baixo era o caso comum.
         child: SizedBox(
-          width: 36,
-          height: 36,
+          width: 44,
+          height: 44,
           child: Icon(icon, size: 20, color: context.colors.onSurface),
         ),
       ),
@@ -520,23 +617,28 @@ class _Results extends StatelessWidget {
         elevation: 6,
         color: context.colors.surface,
         clipBehavior: Clip.antiAlias,
-        child: ListView.separated(
-          shrinkWrap: true,
-          padding: EdgeInsets.zero,
-          itemCount: results.length,
-          separatorBuilder: (_, _) => Divider(height: 1, color: context.colors.outline),
-          itemBuilder: (context, i) {
-            final place = results[i];
-            return ListTile(
-              dense: true,
-              leading: const Icon(Icons.place_outlined, size: 20),
-              title: Text(place.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-              subtitle: place.address == null
-                  ? null
-                  : Text(place.address!, maxLines: 1, overflow: TextOverflow.ellipsis),
-              onTap: () => onPick(place),
-            );
-          },
+        // Seis resultados tapavam o mapa inteiro, contrariando o "busque **ou**
+        // toque no mapa" do subtítulo. Com teto, sempre sobra mapa à vista.
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxHeight: 260),
+          child: ListView.separated(
+            shrinkWrap: true,
+            padding: EdgeInsets.zero,
+            itemCount: results.length,
+            separatorBuilder: (_, _) => Divider(height: 1, color: context.colors.outline),
+            itemBuilder: (context, i) {
+              final place = results[i];
+              return ListTile(
+                dense: true,
+                leading: const Icon(Icons.place_outlined, size: 20),
+                title: Text(place.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+                subtitle: place.address == null
+                    ? null
+                    : Text(place.address!, maxLines: 1, overflow: TextOverflow.ellipsis),
+                onTap: () => onPick(place),
+              );
+            },
+          ),
         ),
       ),
     );

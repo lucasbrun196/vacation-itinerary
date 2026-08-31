@@ -96,10 +96,16 @@ class _WeatherButton extends StatelessWidget {
                     ?.copyWith(color: accent, fontWeight: FontWeight.w800),
               ),
               Gap.hXs,
-              Text(
-                'Ver previsão',
-                style: context.text.labelSmall
-                    ?.copyWith(color: accent, fontWeight: FontWeight.w700),
+              // Mesma razão do `ItineraryChip`: em 320px o botão é o mais
+              // largo da linha, e sem o `Flexible` ele estoura o `Wrap`.
+              Flexible(
+                child: Text(
+                  'Ver previsão',
+                  style: context.text.labelSmall
+                      ?.copyWith(color: accent, fontWeight: FontWeight.w700),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
               Icon(Icons.chevron_right_rounded, size: 15, color: accent),
             ],

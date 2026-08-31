@@ -42,14 +42,28 @@ class ShimmerList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: List.generate(
-        itemCount,
-        (_) => Padding(
-          padding: const EdgeInsets.only(bottom: Gap.md),
-          child: ShimmerBox(height: itemHeight, borderRadius: Radii.brLg),
-        ),
-      ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Numa `Column` de altura rígida, quatro cards de 96px estouram a
+        // viewport do Chrome de celular — e isso é a primeira tela de toda
+        // viagem. Quando há altura conhecida, o esqueleto mostra só o que cabe.
+        var count = itemCount;
+        if (constraints.hasBoundedHeight) {
+          final fits = (constraints.maxHeight / (itemHeight + Gap.md)).floor();
+          count = fits.clamp(1, itemCount);
+        }
+
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: List.generate(
+            count,
+            (_) => Padding(
+              padding: const EdgeInsets.only(bottom: Gap.md),
+              child: ShimmerBox(height: itemHeight, borderRadius: Radii.brLg),
+            ),
+          ),
+        );
+      },
     );
   }
 }

@@ -449,34 +449,82 @@ class _MapField extends StatelessWidget {
         borderRadius: Radii.brMd,
         border: Border.all(color: AppColors.sky, width: 1.4),
       ),
-      child: Row(
+      child: _PickedPlaceRow(
+        placeName: placeName,
+        onPick: onPick,
+        onClear: onClear,
+      ),
+    );
+  }
+}
+
+/// O lugar já marcado, com as ações de trocar e tirar do mapa.
+///
+/// "Trocar" e o "×" comem ~130px: em tela estreita sobra tão pouco que o nome
+/// do lugar aparece sempre truncado. Ali as ações descem para a linha de baixo.
+class _PickedPlaceRow extends StatelessWidget {
+  const _PickedPlaceRow({
+    required this.placeName,
+    required this.onPick,
+    required this.onClear,
+  });
+
+  final String placeName;
+  final VoidCallback onPick;
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          placeName.trim().isEmpty ? 'Ponto marcado no mapa' : placeName.trim(),
+          style: context.text.labelLarge,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+        Text('Marcado no mapa', style: context.text.labelSmall),
+      ],
+    );
+
+    final swap = TextButton(onPressed: onPick, child: const Text('Trocar'));
+    final clear = IconButton(
+      tooltip: 'Tirar do mapa',
+      onPressed: onClear,
+      icon: const Icon(Icons.close_rounded, size: 18),
+      visualDensity: VisualDensity.compact,
+    );
+
+    if (context.isNarrow) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.place_rounded, size: 18, color: AppColors.sky),
-          Gap.hMd,
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  placeName.trim().isEmpty ? 'Ponto marcado no mapa' : placeName.trim(),
-                  style: context.text.labelLarge,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                Text('Marcado no mapa', style: context.text.labelSmall),
-              ],
-            ),
+          Row(
+            children: [
+              const Icon(Icons.place_rounded, size: 18, color: AppColors.sky),
+              Gap.hMd,
+              Expanded(child: label),
+            ],
           ),
-          TextButton(onPressed: onPick, child: const Text('Trocar')),
-          IconButton(
-            tooltip: 'Tirar do mapa',
-            onPressed: onClear,
-            icon: const Icon(Icons.close_rounded, size: 18),
-            visualDensity: VisualDensity.compact,
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [swap, clear],
           ),
         ],
-      ),
+      );
+    }
+
+    return Row(
+      children: [
+        const Icon(Icons.place_rounded, size: 18, color: AppColors.sky),
+        Gap.hMd,
+        Expanded(child: label),
+        swap,
+        clear,
+      ],
     );
   }
 }
@@ -628,44 +676,62 @@ class _TimeRow extends StatelessWidget {
       );
     }
 
+    final start = InkWell(
+      borderRadius: Radii.brMd,
+      onTap: onPickStart,
+      child: InputDecorator(
+        decoration: const InputDecoration(
+          labelText: 'Começa',
+          prefixIcon: Icon(Icons.schedule_rounded, size: 20),
+        ),
+        child: Text(startTime!.format(context), style: context.text.bodyMedium),
+      ),
+    );
+
+    final end = InkWell(
+      borderRadius: Radii.brMd,
+      onTap: onPickEnd,
+      child: InputDecorator(
+        decoration: const InputDecoration(labelText: 'Termina'),
+        child: Text(
+          endTime?.format(context) ?? 'opcional',
+          style: endTime == null
+              ? context.text.bodyMedium?.copyWith(color: AppColors.inkFaint)
+              : context.text.bodyMedium,
+        ),
+      ),
+    );
+
+    final clear = IconButton(
+      tooltip: 'Tirar horário',
+      onPressed: onClear,
+      icon: const Icon(Icons.close_rounded, size: 18),
+      visualDensity: VisualDensity.compact,
+    );
+
+    // Lado a lado em tela estreita sobram ~60px por campo — e o de início
+    // ainda tem o ícone. O label flutuante não cabe. Empilhados, cada um usa
+    // a largura toda.
+    if (context.isNarrow) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          start,
+          Gap.vSm,
+          Row(
+            children: [Expanded(child: end), Gap.hXs, clear],
+          ),
+        ],
+      );
+    }
+
     return Row(
       children: [
-        Expanded(
-          child: InkWell(
-            borderRadius: Radii.brMd,
-            onTap: onPickStart,
-            child: InputDecorator(
-              decoration: const InputDecoration(
-                labelText: 'Começa',
-                prefixIcon: Icon(Icons.schedule_rounded, size: 20),
-              ),
-              child: Text(startTime!.format(context), style: context.text.bodyMedium),
-            ),
-          ),
-        ),
+        Expanded(child: start),
         Gap.hMd,
-        Expanded(
-          child: InkWell(
-            borderRadius: Radii.brMd,
-            onTap: onPickEnd,
-            child: InputDecorator(
-              decoration: const InputDecoration(labelText: 'Termina'),
-              child: Text(
-                endTime?.format(context) ?? 'opcional',
-                style: endTime == null
-                    ? context.text.bodyMedium?.copyWith(color: AppColors.inkFaint)
-                    : context.text.bodyMedium,
-              ),
-            ),
-          ),
-        ),
+        Expanded(child: end),
         Gap.hXs,
-        IconButton(
-          tooltip: 'Tirar horário',
-          onPressed: onClear,
-          icon: const Icon(Icons.close_rounded, size: 18),
-          visualDensity: VisualDensity.compact,
-        ),
+        clear,
       ],
     );
   }
@@ -732,11 +798,17 @@ class _BillPicker extends StatelessWidget {
                 children: [
                   Icon(bill.category.icon, size: 15, color: bill.category.color),
                   Gap.hXs,
-                  Text(
-                    bill.title,
-                    style: context.text.labelMedium?.copyWith(
-                      fontWeight:
-                          selectedId == bill.id ? FontWeight.w700 : FontWeight.w500,
+                  // Idem `_Chip` do card do roteiro: dentro de um `Wrap` o
+                  // título da conta precisa poder encolher.
+                  Flexible(
+                    child: Text(
+                      bill.title,
+                      style: context.text.labelMedium?.copyWith(
+                        fontWeight:
+                            selectedId == bill.id ? FontWeight.w700 : FontWeight.w500,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   Gap.hSm,
