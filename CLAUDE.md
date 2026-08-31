@@ -79,9 +79,21 @@ raiz de branch parametrizada, e todas as rotas internas são
 formulários — ele é um sheet aninhado, aberto de dentro de outro, e é o
 `showAppSheet` que devolve o `PickedPlace` escolhido.
 
-**Coordenada não aparece na tela.** `lat`/`lng` existem para a API de previsão
-do tempo. O que o usuário lê é sempre `placeName` (e `address`), inclusive no
+**Coordenada não aparece na tela.** `lat`/`lng` alimentam a API de previsão do
+tempo. O que o usuário lê é sempre `placeName` (e `address`), inclusive no
 card do roteiro. Um pin cheio no card sinaliza "está fixado no mapa".
+
+**A previsão do tempo some em silêncio, e isso é o comportamento certo.** O
+`WeatherChip` do card não aparece quando a atividade não tem coordenada, quando
+falta mais de uma semana para a viagem começar (ou ela já acabou —
+`Weather.isWindowOpen`), quando o dia está além dos 16 dias que a Open-Meteo
+cobre, ou quando a rede falhou. O chip é também o botão do painel do dia, que
+— como todo formulário — abre por `showAppSheet`. Nenhum desses casos é erro: previsão é
+conveniência, e `WeatherService` devolve mapa vazio em vez de lançar, como o
+`GeocodingService`. A Open-Meteo é gratuita e **não pede chave** — não há nada
+para configurar no build. O cache é por coordenada arredondada a duas casas
+(~1 km), o que faz o roteiro inteiro de um destino virar um pedido só; é a
+igualdade de `WeatherQuery` que dedupa a `FutureProvider.family`.
 
 **A geocodificação é o Nominatim (OSM), não o Mapbox.** O plano gratuito do
 Mapbox é o *temporary geocoding*, cujos termos não deixam guardar o resultado —

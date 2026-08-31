@@ -12,7 +12,9 @@ import '../../../data/models/bill.dart';
 import '../../../data/models/itinerary_enums.dart';
 import '../../../data/models/itinerary_item.dart';
 import '../../../shared/widgets/cards/glass_card.dart';
+import 'itinerary_chip.dart';
 import 'itinerary_form_sheet.dart';
+import 'weather_chip.dart';
 
 /// Uma parada na linha do tempo: marcador do horário à esquerda, o
 /// conteúdo à direita.
@@ -96,19 +98,23 @@ class ItineraryCard extends ConsumerWidget {
                       runSpacing: Gap.xs,
                       crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
-                        _Chip(
+                        ItineraryChip(
                           label: item.category.label,
                           icon: item.category.icon,
                           color: accent,
                         ),
                         if (item.transport != null)
-                          _Chip(
+                          ItineraryChip(
                             label: item.transport!.label,
                             icon: item.transport!.icon,
                             color: AppColors.sky,
                           ),
+                        // Só entra na lista quando há coordenada: o chip
+                        // se esconde sozinho, mas um widget vazio ainda
+                        // ocuparia o `spacing` do Wrap.
+                        if (item.hasCoords) WeatherChip(item: item),
                         if (bill != null)
-                          _Chip(
+                          ItineraryChip(
                             label: '${bill.title} · '
                                 '${Money.formatCompact(bill.chargedTotalCents)}',
                             icon: Icons.receipt_long_rounded,
@@ -314,37 +320,6 @@ class _MenuRow extends StatelessWidget {
   }
 }
 
-class _Chip extends StatelessWidget {
-  const _Chip({required this.label, required this.icon, required this.color});
-
-  final String label;
-  final IconData icon;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: Gap.sm, vertical: 3),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: Radii.brPill,
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 11, color: color),
-          Gap.hXs,
-          Text(
-            label,
-            style: context.text.labelSmall
-                ?.copyWith(color: color, fontWeight: FontWeight.w700),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _LinkChip extends StatelessWidget {
   const _LinkChip({required this.url});
 
@@ -362,7 +337,7 @@ class _LinkChip extends StatelessWidget {
           context.showSnack('Não deu para abrir o link', isError: true);
         }
       },
-      child: const _Chip(
+      child: const ItineraryChip(
         label: 'Abrir link',
         icon: Icons.open_in_new_rounded,
         color: AppColors.grape,

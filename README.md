@@ -83,14 +83,35 @@ real são as Security Rules em `firebase/`.
 ## Mapa
 
 Cada atividade do roteiro pode ter um ponto marcado no mapa. A coordenada
-(`lat`/`lng`) fica **só no banco** — é ela que vai alimentar a previsão do
-tempo, que precisa de posição exata e não de nome. Na tela aparece sempre o
-nome do lugar: "Praia da Joaquina", "Rua Bocaiúva".
+(`lat`/`lng`) fica **só no banco** — é ela que alimenta a previsão do tempo,
+que precisa de posição exata e não de nome. Na tela aparece sempre o nome do
+lugar: "Praia da Joaquina", "Rua Bocaiúva".
 
 | Peça | Serviço | Plano gratuito |
 |---|---|---|
 | Tiles do mapa | Mapbox Raster Tiles | 750 mil requisições/mês |
 | Nome ⇄ coordenada | Nominatim (OpenStreetMap) | grátis, 1 requisição/s |
+| Previsão do tempo | [Open-Meteo](https://open-meteo.com) | grátis, sem chave |
+
+### Previsão do tempo
+
+O card da atividade ganha um chip com a máxima, a mínima e o ícone da
+condição do dia. **Tocar no chip abre o painel do dia**: se vai chover e com
+que chance, quanto deve cair em milímetros, sensação térmica, vento, índice
+UV, nascer e pôr do sol, e a curva hora a hora — com a hora da atividade
+destacada, quando ela tem horário marcado.
+
+O chip só aparece quando as duas coisas valem:
+
+- a atividade tem um **lugar fixado no mapa** (sem coordenada não há o que
+  consultar);
+- falta **no máximo uma semana** para a viagem começar, e ela ainda não
+  acabou. Antes disso a previsão é chute, e um número na tela vira promessa.
+
+A Open-Meteo não pede chave nem cadastro: nada entra no `--dart-define`. Ela
+cobre 16 dias à frente, então dias mais distantes de uma viagem longa ficam
+sem chip até chegarem à janela. Falha de rede não mostra erro — o chip
+simplesmente não aparece. Dados de previsão por Open-Meteo.eu (CC BY 4.0).
 
 A geocodificação **não** é a do Mapbox de propósito: o plano gratuito de lá é o
 *temporary geocoding*, cujos termos não permitem guardar o resultado — e aqui o

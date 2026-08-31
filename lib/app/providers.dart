@@ -11,6 +11,7 @@ import '../data/models/itinerary_enums.dart';
 import '../data/models/member.dart';
 import '../data/models/trip.dart';
 import '../data/models/itinerary_item.dart';
+import '../data/models/weather.dart';
 import '../data/repositories/bill_repository.dart';
 import '../data/repositories/itinerary_repository.dart';
 import '../data/repositories/trip_repository.dart';
@@ -20,6 +21,7 @@ import '../data/services/firestore_refs.dart';
 import '../data/services/geocoding_service.dart';
 import '../data/services/local_prefs_service.dart';
 import '../data/services/storage_service.dart';
+import '../data/services/weather_service.dart';
 
 // ---------------------------------------------------------------
 // Infraestrutura
@@ -40,6 +42,10 @@ final authServiceProvider =
 /// Nome do lugar a partir da coordenada (e vice-versa). Não depende da
 /// viagem, então não precisa declarar `dependencies`.
 final geocodingServiceProvider = Provider((ref) => GeocodingService());
+
+/// Previsão do tempo pela coordenada. Também não depende da viagem — o
+/// cache dele vive na sessão inteira, de propósito.
+final weatherServiceProvider = Provider((ref) => WeatherService());
 
 /// Injetado no `main` depois de carregar as preferências.
 final prefsProvider = Provider<LocalPrefsService>(
@@ -231,4 +237,27 @@ final billSharesProvider = StreamProvider.family<List<BillShare>, String>(
       .watch(billRepositoryProvider)
       .watchShares(ref.watch(currentTripIdProvider), billId),
   dependencies: [currentTripIdProvider],
+);
+
+// ---------------------------------------------------------------
+// Previsão do tempo
+// ---------------------------------------------------------------
+
+/// A previsão já vale a pena? Ver `Weather.isWindowOpen`.
+///
+/// Lê a viagem, então **precisa** declarar `dependencies` — sem isso o
+/// Riverpod tenta ler o `tripProvider` da raiz, fora do escopo da viagem.
+final weatherWindowOpenProvider = Provider<bool>(
+  (ref) => Weather.isWindowOpen(ref.watch(tripProvider).valueOrNull, DateTime.now()),
+  dependencies: [tripProvider],
+);
+
+/// Previsão de um ponto do mapa, por dia.
+///
+/// A `WeatherQuery` já chega com a coordenada arredondada, e é a
+/// igualdade dela que faz o roteiro inteiro de um destino compartilhar
+/// uma instância só. Não toca na viagem — logo, sem `dependencies`.
+final dailyForecastProvider =
+    FutureProvider.family<Map<String, DailyWeather>, WeatherQuery>(
+  (ref, query) => ref.watch(weatherServiceProvider).dailyForecast(query),
 );
