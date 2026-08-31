@@ -43,6 +43,10 @@ Future<T?> showAppSheet<T>({
     context: context,
     builder: (context) => scoped(
       Dialog(
+        // Sem isto o rodapé do `SheetActions`, que pinta um fundo sólido
+        // até a borda, cobre os dois cantos de baixo do diálogo — que
+        // aparecem arredondados em cima e quadrados embaixo.
+        clipBehavior: Clip.antiAlias,
         insetPadding: const EdgeInsets.all(Gap.xl),
         child: ConstrainedBox(
           constraints: BoxConstraints(
