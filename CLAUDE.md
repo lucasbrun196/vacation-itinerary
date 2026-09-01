@@ -83,6 +83,14 @@ formulários — ele é um sheet aninhado, aberto de dentro de outro, e é o
 tempo. O que o usuário lê é sempre `placeName` (e `address`), inclusive no
 card do roteiro. Um pin cheio no card sinaliza "está fixado no mapa".
 
+**Uma atividade liga-se a várias contas, em `billIds`.** O campo antigo era
+`billId`, com uma conta só; `ItineraryItem.fromDoc` ainda lê os dois formatos e
+`toMap` apaga o velho com `FieldValue.delete()` — sem isso o `merge: true`
+deixaria os dois no documento. Nas estatísticas cada conta soma **uma vez**,
+mesmo ligada a várias atividades (`itinerarySpendByCategoryProvider`), senão o
+gasto do roteiro infla. Apagar uma conta em Gastos desfaz só o vínculo dela:
+`ItineraryRepository.unlinkBill` usa `arrayRemove` e consulta os dois formatos.
+
 **A previsão do tempo some em silêncio, e isso é o comportamento certo.** O
 `WeatherChip` do card não aparece quando a atividade não tem coordenada, quando
 falta mais de uma semana para a viagem começar (ou ela já acabou —
