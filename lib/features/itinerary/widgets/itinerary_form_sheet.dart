@@ -55,7 +55,10 @@ class _ItineraryFormSheetState extends ConsumerState<ItineraryFormSheet> {
   TimeOfDay? _startTime;
   TimeOfDay? _endTime;
   TransportMode? _transport;
-  String? _billId;
+
+  /// Contas ligadas, na ordem em que foram escolhidas — é a ordem em que
+  /// os chips aparecem no card do roteiro.
+  final _billIds = <String>[];
 
   /// A coordenada escolhida no mapa. Só existe no banco — a tela mostra
   /// o nome do lugar.
@@ -71,7 +74,7 @@ class _ItineraryFormSheetState extends ConsumerState<ItineraryFormSheet> {
     _date = item?.date ?? widget.suggestedDate ?? _defaultDate();
     _category = item?.category ?? ItineraryCategory.other;
     _transport = item?.transport;
-    _billId = item?.billId;
+    _billIds.addAll(item?.billIds ?? const []);
     _lat = item?.lat;
     _lng = item?.lng;
 
@@ -129,6 +132,15 @@ class _ItineraryFormSheetState extends ConsumerState<ItineraryFormSheet> {
               : _placeController.text.trim(),
           address: _trimmed(_addressController),
         );
+
+  /// Soma das contas escolhidas, ignorando as que sumiram de Gastos.
+  int _selectedCents(List<Bill> bills) {
+    final byId = {for (final b in bills) b.id: b};
+    return _billIds.fold<int>(
+      0,
+      (sum, id) => sum + (byId[id]?.chargedTotalCents ?? 0),
+    );
+  }
 
   Future<void> _pickOnMap() async {
     final place = await showMapPicker(context, initial: _pickedPlace);
@@ -194,7 +206,7 @@ class _ItineraryFormSheetState extends ConsumerState<ItineraryFormSheet> {
         lat: _lat,
         lng: _lng,
         transport: _transport,
-        billId: _billId,
+        billIds: List.of(_billIds),
         notes: _trimmed(_notesController),
         link: _trimmed(_linkController),
         status: existing?.status ?? ItineraryStatus.planned,
@@ -342,18 +354,40 @@ class _ItineraryFormSheetState extends ConsumerState<ItineraryFormSheet> {
                   ),
                   Gap.vXl,
 
-                  // ----- Conta vinculada -----
-                  Text('Conta relacionada', style: context.text.labelLarge),
+                  // ----- Contas vinculadas -----
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text('Contas relacionadas', style: context.text.labelLarge),
+                      ),
+                      if (_billIds.isNotEmpty)
+                        TextButton(
+                          onPressed: () => setState(_billIds.clear),
+                          child: const Text('Limpar'),
+                        ),
+                    ],
+                  ),
                   Text(
-                    'Ligue a uma conta para o gasto entrar nas estatísticas do roteiro',
+                    'Ligue quantas contas quiser — todas entram nas estatísticas '
+                    'do roteiro',
                     style: context.text.bodySmall,
                   ),
                   Gap.vMd,
                   _BillPicker(
                     bills: bills,
-                    selectedId: _billId,
-                    onChanged: (id) => setState(() => _billId = _billId == id ? null : id),
+                    selectedIds: _billIds,
+                    onToggle: (id) => setState(() {
+                      if (!_billIds.remove(id)) _billIds.add(id);
+                    }),
                   ),
+                  if (_billIds.length > 1) ...[
+                    Gap.vSm,
+                    Text(
+                      '${_billIds.length} contas · '
+                      '${Money.format(_selectedCents(bills))} no total',
+                      style: context.text.labelSmall,
+                    ),
+                  ],
                   Gap.vXl,
 
                   TextFormField(
@@ -740,13 +774,13 @@ class _TimeRow extends StatelessWidget {
 class _BillPicker extends StatelessWidget {
   const _BillPicker({
     required this.bills,
-    required this.selectedId,
-    required this.onChanged,
+    required this.selectedIds,
+    required this.onToggle,
   });
 
   final List<Bill> bills;
-  final String? selectedId;
-  final ValueChanged<String> onChanged;
+  final List<String> selectedIds;
+  final ValueChanged<String> onToggle;
 
   @override
   Widget build(BuildContext context) {
@@ -777,54 +811,58 @@ class _BillPicker extends StatelessWidget {
       runSpacing: Gap.sm,
       children: [
         for (final bill in bills)
-          InkWell(
-            borderRadius: Radii.brPill,
-            onTap: () => onChanged(bill.id),
-            child: AnimatedContainer(
-              duration: Motion.fast,
-              padding: const EdgeInsets.symmetric(horizontal: Gap.md, vertical: Gap.sm),
-              decoration: BoxDecoration(
-                color: selectedId == bill.id
-                    ? bill.category.color.withValues(alpha: 0.16)
-                    : context.colors.surfaceContainerHigh,
-                borderRadius: Radii.brPill,
-                border: Border.all(
-                  color: selectedId == bill.id ? bill.category.color : Colors.transparent,
-                  width: 1.4,
+          _selectable(context, bill, selected: selectedIds.contains(bill.id)),
+      ],
+    );
+  }
+
+  /// Cada conta é um botão de liga/desliga: dá para marcar quantas forem.
+  Widget _selectable(BuildContext context, Bill bill, {required bool selected}) {
+    return InkWell(
+      borderRadius: Radii.brPill,
+      onTap: () => onToggle(bill.id),
+      child: AnimatedContainer(
+        duration: Motion.fast,
+        padding: const EdgeInsets.symmetric(horizontal: Gap.md, vertical: Gap.sm),
+        decoration: BoxDecoration(
+          color: selected
+              ? bill.category.color.withValues(alpha: 0.16)
+              : context.colors.surfaceContainerHigh,
+          borderRadius: Radii.brPill,
+          border: Border.all(
+            color: selected ? bill.category.color : Colors.transparent,
+            width: 1.4,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(bill.category.icon, size: 15, color: bill.category.color),
+            Gap.hXs,
+            // Idem `_Chip` do card do roteiro: dentro de um `Wrap` o
+            // título da conta precisa poder encolher.
+            Flexible(
+              child: Text(
+                bill.title,
+                style: context.text.labelMedium?.copyWith(
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                 ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(bill.category.icon, size: 15, color: bill.category.color),
-                  Gap.hXs,
-                  // Idem `_Chip` do card do roteiro: dentro de um `Wrap` o
-                  // título da conta precisa poder encolher.
-                  Flexible(
-                    child: Text(
-                      bill.title,
-                      style: context.text.labelMedium?.copyWith(
-                        fontWeight:
-                            selectedId == bill.id ? FontWeight.w700 : FontWeight.w500,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  Gap.hSm,
-                  Text(
-                    Money.formatCompact(bill.chargedTotalCents),
-                    style: context.text.labelSmall,
-                  ),
-                  if (selectedId == bill.id) ...[
-                    Gap.hXs,
-                    Icon(Icons.check_rounded, size: 14, color: bill.category.color),
-                  ],
-                ],
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
-          ),
-      ],
+            Gap.hSm,
+            Text(
+              Money.formatCompact(bill.chargedTotalCents),
+              style: context.text.labelSmall,
+            ),
+            if (selected) ...[
+              Gap.hXs,
+              Icon(Icons.check_rounded, size: 14, color: bill.category.color),
+            ],
+          ],
+        ),
+      ),
     );
   }
 }

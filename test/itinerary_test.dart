@@ -12,7 +12,7 @@ ItineraryItem item(
   double? lng,
   String? placeName,
   ItineraryStatus status = ItineraryStatus.planned,
-  String? billId,
+  List<String> billIds = const [],
 }) =>
     ItineraryItem(
       id: title,
@@ -23,7 +23,7 @@ ItineraryItem item(
       lng: lng,
       placeName: placeName,
       status: status,
-      billId: billId,
+      billIds: billIds,
       startAt: hora == null
           ? null
           : DateTime(date.year, date.month, date.day, hora),
@@ -68,19 +68,28 @@ void main() {
     });
   });
 
-  group('Vínculo com conta', () {
+  group('Vínculo com contas', () {
     test('sem conta não conta como vinculada', () {
       expect(item('a', date: dia1).isLinkedToBill, isFalse);
-      expect(item('b', date: dia1, billId: '').isLinkedToBill, isFalse);
+      expect(item('b', date: dia1, billIds: const []).isLinkedToBill, isFalse);
     });
 
     test('com conta, sim', () {
-      expect(item('c', date: dia1, billId: 'conta-1').isLinkedToBill, isTrue);
+      expect(item('c', date: dia1, billIds: const ['conta-1']).isLinkedToBill, isTrue);
     });
 
-    test('desfazer o vínculo limpa o campo', () {
-      final ligada = item('d', date: dia1, billId: 'conta-1');
-      expect(ligada.copyWith(clearBill: true).isLinkedToBill, isFalse);
+    test('várias contas na mesma atividade', () {
+      final varias = item('e', date: dia1, billIds: const ['conta-1', 'conta-2']);
+      expect(varias.billIds, ['conta-1', 'conta-2']);
+      expect(varias.isLinkedToBill, isTrue);
+      expect(varias.toMap()['billIds'], ['conta-1', 'conta-2']);
+    });
+
+    test('desfazer o vínculo limpa todas', () {
+      final ligada = item('d', date: dia1, billIds: const ['conta-1', 'conta-2']);
+      final solta = ligada.copyWith(clearBill: true);
+      expect(solta.isLinkedToBill, isFalse);
+      expect(solta.billIds, isEmpty);
     });
   });
 

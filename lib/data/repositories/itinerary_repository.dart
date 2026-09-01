@@ -40,14 +40,33 @@ class ItineraryRepository {
 
   /// Desfaz o vínculo de todas as atividades ligadas a uma conta que
   /// deixou de existir, para o roteiro não apontar para o vazio.
+  /// As outras contas da atividade continuam ligadas — some só a que
+  /// deixou de existir.
+  ///
+  /// A consulta é feita duas vezes porque itens salvos antes da lista
+  /// ainda guardam a conta em `billId`, e o Firestore não casa os dois
+  /// formatos em um filtro só.
   Future<void> unlinkBill(String tripId, String billId) async {
-    final snap = await _refs.itinerary(tripId).where('billId', isEqualTo: billId).get();
-    if (snap.docs.isEmpty) return;
+    final results = await Future.wait([
+      _refs.itinerary(tripId).where('billIds', arrayContains: billId).get(),
+      _refs.itinerary(tripId).where('billId', isEqualTo: billId).get(),
+    ]);
 
     final batch = _refs.db.batch();
-    for (final doc in snap.docs) {
-      batch.update(doc.reference, {'billId': null});
+    final touched = <String>{};
+
+    for (final doc in results.first.docs) {
+      touched.add(doc.id);
+      batch.update(doc.reference, {
+        'billIds': FieldValue.arrayRemove([billId]),
+      });
     }
+    for (final doc in results.last.docs) {
+      if (!touched.add(doc.id)) continue;
+      batch.update(doc.reference, {'billId': FieldValue.delete()});
+    }
+
+    if (touched.isEmpty) return;
     await batch.commit();
   }
 }

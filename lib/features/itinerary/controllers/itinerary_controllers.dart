@@ -46,7 +46,7 @@ final itinerarySummaryProvider = Provider<ItinerarySummary>(
     for (final item in items) {
       if (!item.isLinkedToBill) continue;
       linkedCount++;
-      linkedBillIds.add(item.billId!);
+      linkedBillIds.addAll(item.billIds);
     }
 
     final linkedCents = linkedBillIds.fold<int>(
@@ -77,10 +77,14 @@ final itinerarySpendByCategoryProvider = Provider<Map<ItineraryCategory, int>>(
     final counted = <String>{};
 
     for (final item in items) {
-      if (!item.isLinkedToBill || !counted.add(item.billId!)) continue;
-      final cents = bills[item.billId]?.chargedTotalCents ?? 0;
-      if (cents <= 0) continue;
-      result[item.category] = (result[item.category] ?? 0) + cents;
+      for (final billId in item.billIds) {
+        // A mesma conta ligada a duas atividades entra uma vez só, na
+        // categoria da primeira — senão o gasto apareceria dobrado.
+        if (!counted.add(billId)) continue;
+        final cents = bills[billId]?.chargedTotalCents ?? 0;
+        if (cents <= 0) continue;
+        result[item.category] = (result[item.category] ?? 0) + cents;
+      }
     }
 
     return Map.fromEntries(

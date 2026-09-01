@@ -21,7 +21,7 @@ class ItineraryItem {
     this.lat,
     this.lng,
     this.transport,
-    this.billId,
+    this.billIds = const [],
     this.notes,
     this.link,
     this.status = ItineraryStatus.planned,
@@ -54,9 +54,11 @@ class ItineraryItem {
 
   final TransportMode? transport;
 
-  /// Conta da viagem ligada a esta atividade. É o que permite responder
-  /// "quanto custou o passeio de barco?" sem digitar o valor duas vezes.
-  final String? billId;
+  /// Contas da viagem ligadas a esta atividade. É o que permite responder
+  /// "quanto custou o passeio de barco?" sem digitar o valor duas vezes —
+  /// e um passeio costuma ter mais de uma conta (o barco, o almoço, a
+  /// entrada), por isso é uma lista.
+  final List<String> billIds;
 
   final String? notes;
   final String? link;
@@ -69,7 +71,7 @@ class ItineraryItem {
 
   bool get hasCoords => lat != null && lng != null;
 
-  bool get isLinkedToBill => billId != null && billId!.isNotEmpty;
+  bool get isLinkedToBill => billIds.isNotEmpty;
 
   /// Chave de agrupamento por dia, imune a fuso horário.
   String get dayKey => Fmt.dayKey(date);
@@ -82,6 +84,17 @@ class ItineraryItem {
     if (a != null) return -1;
     if (b != null) return 1;
     return order.compareTo(other.order);
+  }
+
+  /// Lê a lista de contas aceitando o formato antigo, de uma conta só em
+  /// `billId`. A migração acontece na próxima vez que o item for salvo.
+  static List<String> _readBillIds(Map<String, dynamic> d) {
+    final list = d['billIds'];
+    if (list is List) {
+      return list.whereType<String>().where((id) => id.isNotEmpty).toList();
+    }
+    final single = d['billId'] as String?;
+    return (single == null || single.isEmpty) ? const [] : [single];
   }
 
   factory ItineraryItem.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -99,7 +112,7 @@ class ItineraryItem {
       lat: (d['lat'] as num?)?.toDouble(),
       lng: (d['lng'] as num?)?.toDouble(),
       transport: TransportMode.fromId(d['transport'] as String?),
-      billId: d['billId'] as String?,
+      billIds: _readBillIds(d),
       notes: d['notes'] as String?,
       link: d['link'] as String?,
       status: ItineraryStatus.fromId(d['status'] as String?),
@@ -121,7 +134,11 @@ class ItineraryItem {
         'lat': lat,
         'lng': lng,
         'transport': transport?.name,
-        'billId': billId,
+        'billIds': billIds,
+        // Documentos antigos guardavam uma conta só em `billId`. Salvar
+        // é `merge: true`, então o campo velho precisa ser apagado na
+        // mão, ou ele sobrevive ao lado da lista e volta na leitura.
+        'billId': FieldValue.delete(),
         'notes': notes,
         'link': link,
         'status': status.name,
@@ -143,7 +160,7 @@ class ItineraryItem {
     double? lat,
     double? lng,
     TransportMode? transport,
-    String? billId,
+    List<String>? billIds,
     String? notes,
     String? link,
     ItineraryStatus? status,
@@ -165,7 +182,7 @@ class ItineraryItem {
         lat: clearCoords ? null : (lat ?? this.lat),
         lng: clearCoords ? null : (lng ?? this.lng),
         transport: clearTransport ? null : (transport ?? this.transport),
-        billId: clearBill ? null : (billId ?? this.billId),
+        billIds: clearBill ? const [] : (billIds ?? this.billIds),
         notes: notes ?? this.notes,
         link: link ?? this.link,
         status: status ?? this.status,

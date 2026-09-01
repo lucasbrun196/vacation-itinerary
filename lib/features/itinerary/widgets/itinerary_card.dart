@@ -30,11 +30,18 @@ class ItineraryCard extends ConsumerWidget {
     final cancelled = item.status == ItineraryStatus.cancelled;
     final accent = cancelled ? AppColors.inkFaint : item.category.color;
 
-    final bill = item.isLinkedToBill
-        ? (ref.watch(billsProvider).valueOrNull ?? const <Bill>[])
-            .where((b) => b.id == item.billId)
-            .firstOrNull
-        : null;
+    // Na ordem em que as contas foram ligadas, e sem as que já foram
+    // apagadas em Gastos.
+    final bills = item.isLinkedToBill
+        ? {
+            for (final b in ref.watch(billsProvider).valueOrNull ?? const <Bill>[])
+              b.id: b,
+          }
+        : const <String, Bill>{};
+    final linkedBills = [
+      for (final id in item.billIds)
+        if (bills[id] != null) bills[id]!,
+    ];
 
     return IntrinsicHeight(
       child: Row(
@@ -113,7 +120,7 @@ class ItineraryCard extends ConsumerWidget {
                         // se esconde sozinho, mas um widget vazio ainda
                         // ocuparia o `spacing` do Wrap.
                         if (item.hasCoords) WeatherChip(item: item),
-                        if (bill != null)
+                        for (final bill in linkedBills)
                           ItineraryChip(
                             label: '${bill.title} · '
                                 '${Money.formatCompact(bill.chargedTotalCents)}',
@@ -279,8 +286,8 @@ class _StatusButton extends ConsumerWidget {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Excluir atividade?'),
-        content: Text('"${item.title}" sai do roteiro. A conta ligada a ela, se houver, '
-            'continua em Gastos.'),
+        content: Text('"${item.title}" sai do roteiro. As contas ligadas a ela, se houver, '
+            'continuam em Gastos.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
