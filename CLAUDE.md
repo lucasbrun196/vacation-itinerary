@@ -96,6 +96,14 @@ mesmo ligada a várias atividades (`itinerarySpendByCategoryProvider`), senão o
 gasto do roteiro infla. Apagar uma conta em Gastos desfaz só o vínculo dela:
 `ItineraryRepository.unlinkBill` usa `arrayRemove` e consulta os dois formatos.
 
+**Categoria e transporte são listas** (`categories`, `transports`), com o
+mesmo esquema de migração do `billIds`: `fromDoc` lê também os campos antigos
+de valor único (`category`, `transport`) e `toMap` os apaga. A **primeira**
+categoria marcada é a principal — dá ícone e cor ao card e é onde o gasto
+entra nas estatísticas, para não somar a mesma conta em várias categorias. Na
+criação de conta o `set` é sem `merge` e recusa `FieldValue.delete()`, por isso
+`createBill` tira a chave `category` antes de gravar.
+
 **O service worker é o nosso, `web/sw.js` — o do Flutter não serve mais.**
 Desde o Flutter 3.41 o `flutter_service_worker.js` gerado pelo build se
 **desregistra** ao ativar: a estratégia `offline-first` foi depreciada e não
