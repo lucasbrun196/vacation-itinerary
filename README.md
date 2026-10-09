@@ -33,8 +33,12 @@ Regra de dependência: `features` usa `shared`, `data` e `core`.
 
 ## Autenticação e acesso
 
-Entrar é só por **e-mail e senha do Firebase Auth** — não há acesso anônimo
-nem convidado.
+Entra-se por **e-mail e senha** ou pela **conta Google**, ambos do Firebase
+Auth (os dois provedores precisam estar ativados no console) — não há acesso
+anônimo nem convidado. Na web o Google abre numa janela pop-up; no Android e
+no iOS o próprio `firebase_auth` cuida do fluxo, sem o pacote `google_sign_in`.
+Quem entrou só pelo Google não tem senha: a tela de conta esconde "Trocar
+senha" e confirma a exclusão pedindo a conta Google de novo.
 
 | Ação | Quem pode |
 |---|---|
