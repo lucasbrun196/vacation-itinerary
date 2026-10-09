@@ -66,8 +66,8 @@ class ItineraryRow extends ConsumerWidget {
             ? place
             : [
                 if (place.isNotEmpty) place,
-                item.category.label,
-                ?item.transport?.label,
+                item.categoriesLabel,
+                ?item.transportsLabel,
               ].join(' · ');
 
         final tags = <Widget>[
@@ -159,7 +159,7 @@ class ItineraryRow extends ConsumerWidget {
                   SizedBox(
                     width: 120,
                     child: Text(
-                      item.category.label,
+                      item.categoriesLabel,
                       style: context.text.bodySmall?.copyWith(
                         color: faded ? null : item.category.color,
                         fontWeight: FontWeight.w500,
@@ -171,7 +171,7 @@ class ItineraryRow extends ConsumerWidget {
                   SizedBox(
                     width: 104,
                     child: Text(
-                      item.transport?.label ?? '—',
+                      item.transportsLabel ?? '—',
                       style: context.text.bodySmall,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,

@@ -13,14 +13,14 @@ class ItineraryItem {
     required this.id,
     required this.title,
     required this.date,
-    this.category = ItineraryCategory.other,
+    this.categories = const [ItineraryCategory.other],
     this.startAt,
     this.endAt,
     this.placeName,
     this.address,
     this.lat,
     this.lng,
-    this.transport,
+    this.transports = const [],
     this.billIds = const [],
     this.notes,
     this.link,
@@ -36,7 +36,15 @@ class ItineraryItem {
   /// O dia da atividade, sempre normalizado para meia-noite.
   final DateTime date;
 
-  final ItineraryCategory category;
+  /// O que é a parada — pode ser mais de uma coisa ("Passeio" e "Almoço").
+  /// Nunca vazia. A ordem é a da escolha, e a primeira é a principal.
+  final List<ItineraryCategory> categories;
+
+  /// A categoria principal: dá ícone e cor ao card, e é onde o gasto da
+  /// atividade entra nas estatísticas — somar em todas inflaria o total.
+  ItineraryCategory get category => categories.first;
+
+  String get categoriesLabel => categories.map((c) => c.label).join(', ');
 
   /// Data e hora de início. Null quando a atividade não tem horário.
   final DateTime? startAt;
@@ -52,7 +60,12 @@ class ItineraryItem {
   final double? lat;
   final double? lng;
 
-  final TransportMode? transport;
+  /// Como a turma chega — um trecho pode ser "Carro" e depois "Barco".
+  /// Vazia quando ninguém definiu.
+  final List<TransportMode> transports;
+
+  String? get transportsLabel =>
+      transports.isEmpty ? null : transports.map((t) => t.label).join(', ');
 
   /// Contas da viagem ligadas a esta atividade. É o que permite responder
   /// "quanto custou o passeio de barco?" sem digitar o valor duas vezes —
@@ -97,6 +110,21 @@ class ItineraryItem {
     return (single == null || single.isEmpty) ? const [] : [single];
   }
 
+  /// Lê as categorias aceitando o formato antigo, de uma só em `category`.
+  static List<ItineraryCategory> _readCategories(Map<String, dynamic> d) {
+    final list = d['categories'];
+    final ids = list is List ? list.whereType<String>() : [?d['category'] as String?];
+    final result = ids.map(ItineraryCategory.fromId).toSet().toList();
+    return result.isEmpty ? const [ItineraryCategory.other] : result;
+  }
+
+  /// Lê os transportes aceitando o formato antigo, de um só em `transport`.
+  static List<TransportMode> _readTransports(Map<String, dynamic> d) {
+    final list = d['transports'];
+    final ids = list is List ? list.whereType<String>() : [?d['transport'] as String?];
+    return ids.map(TransportMode.fromId).nonNulls.toSet().toList();
+  }
+
   factory ItineraryItem.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
     final d = doc.data() ?? {};
     final date = (d['date'] as Timestamp?)?.toDate() ?? DateTime.now();
@@ -104,14 +132,14 @@ class ItineraryItem {
       id: doc.id,
       title: d['title'] as String? ?? '',
       date: DateTime(date.year, date.month, date.day),
-      category: ItineraryCategory.fromId(d['category'] as String?),
+      categories: _readCategories(d),
       startAt: (d['startAt'] as Timestamp?)?.toDate(),
       endAt: (d['endAt'] as Timestamp?)?.toDate(),
       placeName: d['placeName'] as String?,
       address: d['address'] as String?,
       lat: (d['lat'] as num?)?.toDouble(),
       lng: (d['lng'] as num?)?.toDouble(),
-      transport: TransportMode.fromId(d['transport'] as String?),
+      transports: _readTransports(d),
       billIds: _readBillIds(d),
       notes: d['notes'] as String?,
       link: d['link'] as String?,
@@ -126,14 +154,18 @@ class ItineraryItem {
         'title': title,
         'date': Timestamp.fromDate(date),
         'dayKey': dayKey,
-        'category': category.name,
+        'categories': [for (final c in categories) c.name],
+        'transports': [for (final t in transports) t.name],
+        // Mesmo caso do `billId` abaixo: os campos de valor único ficaram
+        // para trás e precisam sair do documento.
+        'category': FieldValue.delete(),
+        'transport': FieldValue.delete(),
         'startAt': startAt == null ? null : Timestamp.fromDate(startAt!),
         'endAt': endAt == null ? null : Timestamp.fromDate(endAt!),
         'placeName': placeName,
         'address': address,
         'lat': lat,
         'lng': lng,
-        'transport': transport?.name,
         'billIds': billIds,
         // Documentos antigos guardavam uma conta só em `billId`. Salvar
         // é `merge: true`, então o campo velho precisa ser apagado na
@@ -152,14 +184,14 @@ class ItineraryItem {
   ItineraryItem copyWith({
     String? title,
     DateTime? date,
-    ItineraryCategory? category,
+    List<ItineraryCategory>? categories,
     DateTime? startAt,
     DateTime? endAt,
     String? placeName,
     String? address,
     double? lat,
     double? lng,
-    TransportMode? transport,
+    List<TransportMode>? transports,
     List<String>? billIds,
     String? notes,
     String? link,
@@ -174,14 +206,14 @@ class ItineraryItem {
         id: id,
         title: title ?? this.title,
         date: date ?? this.date,
-        category: category ?? this.category,
+        categories: categories ?? this.categories,
         startAt: clearTime ? null : (startAt ?? this.startAt),
         endAt: clearTime ? null : (endAt ?? this.endAt),
         placeName: placeName ?? this.placeName,
         address: address ?? this.address,
         lat: clearCoords ? null : (lat ?? this.lat),
         lng: clearCoords ? null : (lng ?? this.lng),
-        transport: clearTransport ? null : (transport ?? this.transport),
+        transports: clearTransport ? const [] : (transports ?? this.transports),
         billIds: clearBill ? const [] : (billIds ?? this.billIds),
         notes: notes ?? this.notes,
         link: link ?? this.link,

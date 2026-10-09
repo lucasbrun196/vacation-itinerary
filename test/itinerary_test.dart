@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vacation_itinerary/data/models/itinerary_enums.dart';
 import 'package:vacation_itinerary/data/models/itinerary_item.dart';
@@ -174,6 +175,36 @@ void main() {
       final comHora = item('b', date: dia1, hora: 9);
       expect(comHora.hasTime, isTrue);
       expect(comHora.copyWith(clearTime: true).hasTime, isFalse);
+    });
+  });
+
+  group('Várias categorias e transportes', () {
+    final passeio = ItineraryItem(
+      id: 'p',
+      title: 'Ilha do Campeche',
+      date: dia1,
+      categories: const [ItineraryCategory.tour, ItineraryCategory.lunch],
+      transports: const [TransportMode.car, TransportMode.boat],
+    );
+
+    test('a primeira categoria marcada é a principal', () {
+      expect(passeio.category, ItineraryCategory.tour);
+      expect(passeio.categoriesLabel, 'Passeio, Almoço');
+      expect(passeio.transportsLabel, 'Carro, Barco');
+    });
+
+    test('grava as listas e apaga os campos de valor único', () {
+      final map = passeio.toMap();
+      expect(map['categories'], ['tour', 'lunch']);
+      expect(map['transports'], ['car', 'boat']);
+      expect(map['category'], isA<FieldValue>());
+      expect(map['transport'], isA<FieldValue>());
+    });
+
+    test('sem transporte não mostra nada', () {
+      final semTransporte = passeio.copyWith(clearTransport: true);
+      expect(semTransporte.transports, isEmpty);
+      expect(semTransporte.transportsLabel, isNull);
     });
   });
 }

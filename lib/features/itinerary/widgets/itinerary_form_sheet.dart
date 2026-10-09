@@ -15,6 +15,7 @@ import '../../../data/services/geocoding_service.dart';
 import '../../../core/config/map_config.dart';
 import '../../../shared/widgets/inputs/date_range_dialog.dart';
 import '../../../shared/widgets/layout/app_sheet.dart';
+import '../../../shared/widgets/inputs/multi_choice_chips.dart';
 import 'map_picker_sheet.dart';
 
 Future<void> showItineraryForm(
@@ -53,10 +54,11 @@ class _ItineraryFormSheetState extends ConsumerState<ItineraryFormSheet> {
   final _linkController = TextEditingController();
 
   late DateTime _date;
-  late ItineraryCategory _category;
+  /// Na ordem em que foram marcadas: a primeira é a principal.
+  late List<ItineraryCategory> _categories;
   TimeOfDay? _startTime;
   TimeOfDay? _endTime;
-  TransportMode? _transport;
+  List<TransportMode> _transports = [];
 
   /// Contas ligadas, na ordem em que foram escolhidas — é a ordem em que
   /// os chips aparecem no card do roteiro.
@@ -74,8 +76,8 @@ class _ItineraryFormSheetState extends ConsumerState<ItineraryFormSheet> {
     final item = widget.item;
 
     _date = item?.date ?? widget.suggestedDate ?? _defaultDate();
-    _category = item?.category ?? ItineraryCategory.other;
-    _transport = item?.transport;
+    _categories = List.of(item?.categories ?? const [ItineraryCategory.other]);
+    _transports = List.of(item?.transports ?? const []);
     _billIds.addAll(item?.billIds ?? const []);
     _lat = item?.lat;
     _lng = item?.lng;
@@ -199,14 +201,14 @@ class _ItineraryFormSheetState extends ConsumerState<ItineraryFormSheet> {
         id: existing?.id ?? '',
         title: _titleController.text.trim(),
         date: _date,
-        category: _category,
+        categories: _categories,
         startAt: _startAt,
         endAt: _endAt,
         placeName: _trimmed(_placeController),
         address: _trimmed(_addressController),
         lat: _lat,
         lng: _lng,
-        transport: _transport,
+        transports: _transports,
         billIds: List.of(_billIds),
         notes: _trimmed(_notesController),
         link: _trimmed(_linkController),
@@ -264,11 +266,14 @@ class _ItineraryFormSheetState extends ConsumerState<ItineraryFormSheet> {
                   ),
                   Gap.vLg,
 
-                  Text('Categoria', style: context.text.labelLarge),
+                  Text('Categorias', style: context.text.labelLarge),
                   Gap.vSm,
-                  _CategoryPicker(
-                    value: _category,
-                    onChanged: (c) => setState(() => _category = c),
+                  MultiChoiceChips<ItineraryCategory>(
+                    options: ItineraryCategory.values,
+                    selected: _categories,
+                    labelOf: (c) => c.label,
+                    required: true,
+                    onChanged: (c) => setState(() => _categories = c),
                   ),
                   Gap.vXl,
 
@@ -339,19 +344,19 @@ class _ItineraryFormSheetState extends ConsumerState<ItineraryFormSheet> {
                   Row(
                     children: [
                       Expanded(child: Text('Como vamos', style: context.text.labelLarge)),
-                      if (_transport != null)
+                      if (_transports.isNotEmpty)
                         TextButton(
-                          onPressed: () => setState(() => _transport = null),
+                          onPressed: () => setState(_transports.clear),
                           child: const Text('Limpar'),
                         ),
                     ],
                   ),
                   Gap.vSm,
-                  _TransportPicker(
-                    value: _transport,
-                    onChanged: (t) => setState(
-                      () => _transport = _transport == t ? null : t,
-                    ),
+                  MultiChoiceChips<TransportMode>(
+                    options: TransportMode.values,
+                    selected: _transports,
+                    labelOf: (t) => t.label,
+                    onChanged: (t) => setState(() => _transports = t),
                   ),
                   Gap.vXl,
 
@@ -559,52 +564,6 @@ class _PickedPlaceRow extends StatelessWidget {
         Expanded(child: label),
         swap,
         clear,
-      ],
-    );
-  }
-}
-
-class _CategoryPicker extends StatelessWidget {
-  const _CategoryPicker({required this.value, required this.onChanged});
-
-  final ItineraryCategory value;
-  final ValueChanged<ItineraryCategory> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Wrap(
-      spacing: Gap.sm,
-      runSpacing: Gap.sm,
-      children: [
-        for (final category in ItineraryCategory.values)
-          ChoiceChip(
-            label: Text(category.label),
-            selected: value == category,
-            onSelected: (_) => onChanged(category),
-          ),
-      ],
-    );
-  }
-}
-
-class _TransportPicker extends StatelessWidget {
-  const _TransportPicker({required this.value, required this.onChanged});
-
-  final TransportMode? value;
-  final ValueChanged<TransportMode> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Wrap(
-      spacing: Gap.sm,
-      runSpacing: Gap.sm,
-      children: [
-        for (final mode in TransportMode.values)
-          ChoiceChip(
-            label: Text(mode.label),
-            selected: value == mode,
-            onSelected: (_) => onChanged(mode),
-          ),
       ],
     );
   }

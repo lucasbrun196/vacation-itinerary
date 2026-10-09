@@ -5,6 +5,9 @@ import '../../core/theme/app_colors.dart';
 /// O que é a parada no roteiro.
 enum ItineraryCategory {
   sightseeing(label: 'Ponto turístico', icon: Icons.photo_camera_rounded, color: AppColors.turquoise),
+  breakfast(label: 'Café', icon: Icons.free_breakfast_rounded, color: AppColors.sunset),
+  lunch(label: 'Almoço', icon: Icons.lunch_dining_rounded, color: AppColors.coral),
+  dinner(label: 'Jantar', icon: Icons.dinner_dining_rounded, color: AppColors.grape),
   food(label: 'Restaurante', icon: Icons.restaurant_rounded, color: AppColors.coral),
   beach(label: 'Praia', icon: Icons.beach_access_rounded, color: AppColors.sunset),
   trail(label: 'Trilha', icon: Icons.hiking_rounded, color: AppColors.palm),
@@ -32,6 +35,9 @@ enum TransportMode {
   rideApp(label: 'App de carona', icon: Icons.local_taxi_rounded),
   bus(label: 'Ônibus', icon: Icons.directions_bus_rounded),
   train(label: 'Trem', icon: Icons.train_rounded),
+  subway(label: 'Metrô', icon: Icons.subway_rounded),
+  plane(label: 'Avião', icon: Icons.flight_rounded),
+  boat(label: 'Barco', icon: Icons.directions_boat_rounded),
   other(label: 'Outro', icon: Icons.alt_route_rounded);
 
   const TransportMode({required this.label, required this.icon});
