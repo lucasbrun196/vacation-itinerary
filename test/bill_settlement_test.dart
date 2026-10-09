@@ -10,7 +10,7 @@ void main() {
   final gas = Bill(
     id: 'gasolina',
     title: 'Gasolina',
-    category: BillCategory.fuel,
+    categories: const [BillCategory.fuel],
     type: BillType.accumulating,
     paidByMemberId: 'lucas',
     participantIds: ['lucas', 'manuela', 'ana', 'pedro'],
