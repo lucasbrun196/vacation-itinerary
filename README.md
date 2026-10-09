@@ -53,6 +53,26 @@ conta. O SDK cliente do Firebase Auth não permite buscar alguém por
 e-mail, então cada conta é espelhada em `users/{uid}` no login — é essa
 coleção que a busca consulta.
 
+### Esqueci minha senha
+
+O e-mail de redefinição é o do próprio Firebase, mas o link dele abre uma
+tela do app (`/redefinir-senha`), e não a página genérica do Firebase. A tela
+confere o link, pede a senha nova e já entra com ela. Duas configurações no
+console, em **Authentication → Templates → Redefinição de senha**:
+
+1. **Texto do e-mail.** Editar (lápis), colar o conteúdo de
+   `firebase/email_templates/redefinir_senha.html` no campo **Mensagem** e
+   usar como assunto `Redefina sua senha do WeGoTravel`. Em **Nome do
+   remetente**, `WeGoTravel`. O idioma do modelo fica em Português (Brasil).
+2. **URL de ação.** No mesmo modelo, "Personalizar URL de ação" → a **raiz**
+   do app, sem caminho nem `#`: `https://seu-app.vercel.app/` (para testar
+   local, `http://localhost:5173/`). O Firebase acrescenta
+   `?mode=resetPassword&oobCode=...`, e o app lê isso ao abrir
+   (`AuthActionLink`).
+
+A URL de ação vale para todos os modelos. Links de outros tipos (confirmar
+ou desfazer troca de e-mail) seguem para a página padrão do Firebase.
+
 ## Firebase
 
 Os arquivos de configuração ficam em `firebase/`:

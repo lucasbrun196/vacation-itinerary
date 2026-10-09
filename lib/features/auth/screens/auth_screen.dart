@@ -5,11 +5,10 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../app/providers.dart';
 import '../../../core/extensions/context_ext.dart';
-import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../data/services/auth_service.dart';
-import '../../../shared/widgets/domain/brand_mark.dart';
 import '../../../shared/widgets/feedback/error_banner.dart';
+import '../widgets/auth_layout.dart';
 
 enum AuthMode { signIn, signUp }
 
@@ -28,6 +27,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   final _passwordController = TextEditingController();
 
   AuthMode _mode = AuthMode.signIn;
+  /// O cartão troca para o pedido de link de nova senha.
+  bool _forgot = false;
   bool _obscure = true;
   bool _loading = false;
   String? _error;
@@ -101,96 +102,31 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     }
   }
 
-  Future<void> _resetPassword() async {
-    final email = _emailController.text.trim();
-    if (email.isEmpty) {
-      setState(() => _error = 'Digite seu e-mail para receber o link.');
-      return;
-    }
-    try {
-      await ref.read(authServiceProvider).sendPasswordReset(email);
-      if (mounted) {
-        context.showSnack('Link de recuperação enviado para $email',
-            icon: Icons.mark_email_read_rounded);
-      }
-    } on AuthFailure catch (e) {
-      if (mounted) setState(() => _error = e.message);
-    }
+  void _setForgot(bool forgot) {
+    setState(() {
+      _forgot = forgot;
+      _error = null;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: context.isMobile ? _buildMobile(context) : _buildWide(context),
-    );
-  }
-
-  /// Tela larga: a ilustração ocupa 40% da largura e toda a altura, à
-  /// esquerda; o formulário fica centrado no resto. Não rola — se a janela
-  /// for baixa demais, o `FittedBox` encolhe o formulário em vez de cortar.
-  Widget _buildWide(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        // 2 : 3 é a divisão 40% / 60% pedida para a imagem e o formulário.
-        const Expanded(flex: 2, child: _Cover()),
-        Expanded(
-          flex: 3,
-          child: SafeArea(
-            child: Center(
-              child: Padding(
-                padding: const EdgeInsets.all(Gap.xl),
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: SizedBox(
-                    width: 400,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const _Logo(),
-                        Gap.vXl,
-                        _Card(child: _buildForm(context)),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
+    return AuthLayout(
+      child: AnimatedSize(
+        duration: context.reduceMotion ? Duration.zero : const Duration(milliseconds: 220),
+        curve: Curves.easeOutCubic,
+        alignment: Alignment.topCenter,
+        child: AnimatedSwitcher(
+          duration: context.reduceMotion ? Duration.zero : const Duration(milliseconds: 180),
+          child: _forgot
+              ? _ForgotPasswordForm(
+                  key: const ValueKey('forgot'),
+                  emailController: _emailController,
+                  onBack: () => _setForgot(false),
+                )
+              : KeyedSubtree(key: const ValueKey('login'), child: _buildForm(context)),
         ),
-      ],
-    );
-  }
-
-  /// Celular: a ilustração vira o fundo inteiro e o formulário flutua num
-  /// cartão no centro. Aqui rola, porque o teclado come metade da tela.
-  Widget _buildMobile(BuildContext context) {
-    return Stack(
-      children: [
-        const Positioned.fill(child: _Cover()),
-        SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(Gap.lg),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 400),
-                child: _Card(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const _Logo(),
-                      Gap.vXl,
-                      _buildForm(context),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ],
+      ),
     );
   }
 
@@ -276,11 +212,11 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
             ),
 
             if (!_isSignUp) ...[
-              Gap.vSm,
+              Gap.vMd,
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton(
-                  onPressed: _loading ? null : _resetPassword,
+                  onPressed: _loading ? null : () => _setForgot(true),
                   child: const Text('Esqueci minha senha'),
                 ),
               ),
@@ -316,6 +252,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
             Wrap(
               alignment: WrapAlignment.center,
               crossAxisAlignment: WrapCrossAlignment.center,
+              // Sem isto o fundo do botão, no hover, encosta na pergunta.
+              spacing: Gap.sm,
               children: [
                 Text(
                   _isSignUp ? 'Já tem conta?' : 'Ainda não tem conta?',
@@ -330,6 +268,164 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
           ],
         ),
       );
+  }
+}
+
+/// Só o e-mail e o botão de enviar. Depois do envio, o cartão vira a
+/// confirmação — com o endereço à vista, para a pessoa conferir se digitou
+/// certo.
+///
+/// O e-mail é o mesmo controlador do login: o que se digitou lá vem
+/// preenchido aqui, e volta junto.
+class _ForgotPasswordForm extends ConsumerStatefulWidget {
+  const _ForgotPasswordForm({
+    super.key,
+    required this.emailController,
+    required this.onBack,
+  });
+
+  final TextEditingController emailController;
+  final VoidCallback onBack;
+
+  @override
+  ConsumerState<_ForgotPasswordForm> createState() => _ForgotPasswordFormState();
+}
+
+class _ForgotPasswordFormState extends ConsumerState<_ForgotPasswordForm> {
+  final _formKey = GlobalKey<FormState>();
+
+  bool _sending = false;
+  String? _sentTo;
+  String? _error;
+
+  Future<void> _send() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    final email = widget.emailController.text.trim();
+    setState(() {
+      _sending = true;
+      _error = null;
+    });
+
+    try {
+      await ref.read(authServiceProvider).sendPasswordReset(email);
+      if (mounted) setState(() => _sentTo = email);
+    } on AuthFailure catch (e) {
+      if (mounted) setState(() => _error = e.message);
+    } catch (_) {
+      if (mounted) setState(() => _error = 'Algo deu errado. Tente de novo.');
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final sentTo = _sentTo;
+    if (sentTo != null) return _buildSent(context, sentTo);
+
+    return Form(
+      key: _formKey,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('Esqueci minha senha', style: context.text.headlineSmall),
+          Gap.vXs,
+          Text(
+            'Digite o e-mail da sua conta e enviamos um link para criar uma senha nova.',
+            style: context.text.bodySmall,
+          ),
+          Gap.vXl,
+          TextFormField(
+            controller: widget.emailController,
+            autofocus: true,
+            keyboardType: TextInputType.emailAddress,
+            textInputAction: TextInputAction.send,
+            autofillHints: const [AutofillHints.email],
+            onFieldSubmitted: (_) => _send(),
+            decoration: const InputDecoration(
+              labelText: 'E-mail',
+              hintText: 'voce@email.com',
+              prefixIcon: Icon(Icons.alternate_email_rounded, size: 20),
+            ),
+            validator: (v) {
+              final value = v?.trim() ?? '';
+              if (value.isEmpty) return 'Informe seu e-mail';
+              final ok = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(value);
+              return ok ? null : 'E-mail inválido';
+            },
+          ),
+          if (_error != null) ...[
+            Gap.vLg,
+            ErrorBanner(message: _error!),
+          ],
+          Gap.vXl,
+          FilledButton(
+            onPressed: _sending ? null : _send,
+            child: _sending
+                ? SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: context.colors.onPrimary,
+                    ),
+                  )
+                : const Text('Enviar link'),
+          ),
+          Gap.vMd,
+          TextButton(
+            onPressed: _sending ? null : widget.onBack,
+            child: const Text('Voltar para o login'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSent(BuildContext context, String email) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(Icons.mark_email_read_rounded, size: 40, color: context.colors.primary),
+        Gap.vLg,
+        Text(
+          'Confira seu e-mail',
+          style: context.text.headlineSmall,
+          textAlign: TextAlign.center,
+        ),
+        Gap.vSm,
+        Text.rich(
+          TextSpan(
+            children: [
+              const TextSpan(text: 'Se existir uma conta com '),
+              TextSpan(
+                text: email,
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+              const TextSpan(
+                text: ', o link para criar a senha nova chega em instantes. '
+                    'Olhe também a caixa de spam.',
+              ),
+            ],
+          ),
+          style: context.text.bodyMedium,
+          textAlign: TextAlign.center,
+        ),
+        Gap.vXl,
+        FilledButton(
+          onPressed: widget.onBack,
+          child: const Text('Voltar para o login'),
+        ),
+        Gap.vSm,
+        TextButton(
+          onPressed: () => setState(() => _sentTo = null),
+          child: const Text('Não recebi — enviar de novo'),
+        ),
+      ],
+    );
   }
 }
 
@@ -389,60 +485,6 @@ class _GoogleButton extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-class _Logo extends StatelessWidget {
-  const _Logo();
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        const BrandMark(size: 32),
-        Gap.vXs,
-        Text(
-          'Roteiro, contas e fotos da viagem',
-          style: context.text.bodySmall,
-          textAlign: TextAlign.center,
-        ),
-      ],
-    );
-  }
-}
-
-class _Card extends StatelessWidget {
-  const _Card({required this.child});
-
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(Gap.xl),
-      decoration: BoxDecoration(
-        color: context.colors.surface,
-        borderRadius: Radii.brXl,
-        border: Border.all(color: context.colors.outline),
-        boxShadow: AppColors.glow(AppColors.coral, opacity: context.isDark ? 0 : 0.12, blur: 40, y: 16),
-      ),
-      child: child,
-    );
-  }
-}
-
-/// A ilustração do avião sobre a praia. Decorativa: fica fora da árvore de
-/// acessibilidade.
-class _Cover extends StatelessWidget {
-  const _Cover();
-
-  @override
-  Widget build(BuildContext context) {
-    return Image.asset(
-      'assets/images/login_cover.jpg',
-      fit: BoxFit.cover,
-      excludeFromSemantics: true,
     );
   }
 }

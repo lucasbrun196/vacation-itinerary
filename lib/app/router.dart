@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../features/account/screens/account_screen.dart';
 import '../features/auth/screens/auth_screen.dart';
+import '../features/auth/screens/reset_password_screen.dart';
 import '../features/auth/screens/splash_screen.dart';
 import '../features/board/screens/board_screen.dart';
 import '../features/dashboard/screens/dashboard_screen.dart';
@@ -15,6 +16,7 @@ import '../features/trip/screens/trip_settings_screen.dart';
 import '../features/trips/screens/trips_screen.dart';
 import '../shared/widgets/domain/brand_mark.dart';
 import '../shared/widgets/layout/trip_scope.dart';
+import 'auth_action_link.dart';
 import 'destinations.dart';
 import 'providers.dart';
 
@@ -23,6 +25,7 @@ abstract final class Routes {
   static const auth = '/entrar';
   static const trips = '/viagens';
   static const account = '/conta';
+  static const resetPassword = '/redefinir-senha';
 
   static String trip(String tripId) => '/viagem/$tripId';
   static String tripSection(String tripId, AppDestination d) => '/viagem/$tripId/${d.path}';
@@ -36,11 +39,21 @@ final routerProvider = Provider<GoRouter>((ref) {
   final refresh = _AuthRefresh(ref);
   ref.onDispose(refresh.dispose);
 
+  // O link do e-mail de "esqueci minha senha" abre o app direto na tela
+  // de nova senha. Ver AuthActionLink.
+  final link = AuthActionLink.fromLaunch();
+
   return GoRouter(
     navigatorKey: _rootKey,
-    initialLocation: Routes.splash,
+    initialLocation: link != null && link.isPasswordReset
+        ? Uri(path: Routes.resetPassword, queryParameters: {'oobCode': link.code}).toString()
+        : Routes.splash,
     refreshListenable: refresh,
     redirect: (context, state) {
+      // Vale com ou sem sessão, e não espera o Firebase dizer se há uma:
+      // passar pela splash perderia o código que veio no link.
+      if (state.matchedLocation == Routes.resetPassword) return null;
+
       final auth = ref.read(authStateProvider);
 
       final atSplash = state.matchedLocation == Routes.splash;
@@ -73,6 +86,12 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: Routes.trips,
         pageBuilder: (context, state) => const NoTransitionPage(child: TripsScreen()),
+      ),
+      GoRoute(
+        path: Routes.resetPassword,
+        pageBuilder: (context, state) => NoTransitionPage(
+          child: ResetPasswordScreen(code: state.uri.queryParameters['oobCode'] ?? ''),
+        ),
       ),
       // Fora do ShellRoute: a conta não pertence a viagem nenhuma.
       GoRoute(

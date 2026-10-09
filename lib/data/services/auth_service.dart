@@ -32,6 +32,9 @@ class AuthFailure implements Exception {
         'account-exists-with-different-credential' =>
           'Esse e-mail já tem conta com senha. Entre com e-mail e senha.',
         'user-mismatch' => 'Escolha a mesma conta Google com que você entrou.',
+        'expired-action-code' => 'Esse link expirou. Peça um novo na tela de login.',
+        'invalid-action-code' =>
+          'Esse link não vale mais — talvez já tenha sido usado. Peça um novo na tela de login.',
         'requires-recent-login' => 'Faça login de novo para concluir essa ação.',
         _ => 'Não deu para concluir. Tente novamente.',
       });
@@ -142,6 +145,29 @@ class AuthService {
   Future<void> sendPasswordReset(String email) async {
     try {
       await _auth.sendPasswordResetEmail(email: email.trim());
+    } on FirebaseAuthException catch (e) {
+      throw AuthFailure.fromCode(e.code);
+    }
+  }
+
+  /// Confere o código que veio no link do e-mail de redefinição e
+  /// devolve o e-mail da conta, para a tela mostrar de quem é a senha.
+  Future<String> verifyPasswordResetCode(String code) async {
+    try {
+      return await _auth.verifyPasswordResetCode(code);
+    } on FirebaseAuthException catch (e) {
+      throw AuthFailure.fromCode(e.code);
+    }
+  }
+
+  /// Grava a senha nova. O código vale uma vez só: depois disto o mesmo
+  /// link dá `invalid-action-code`.
+  Future<void> confirmPasswordReset({
+    required String code,
+    required String newPassword,
+  }) async {
+    try {
+      await _auth.confirmPasswordReset(code: code, newPassword: newPassword);
     } on FirebaseAuthException catch (e) {
       throw AuthFailure.fromCode(e.code);
     }
