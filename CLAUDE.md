@@ -76,6 +76,14 @@ falha, `allSharesProvider` vira lista vazia e todo painel de "já quitado"
 mostra zero, enquanto a tela da conta (que lê a subcoleção direto) mostra os
 pagamentos. Ver `FirestoreRefs.sharesOfTrip`.
 
+**O link do e-mail de "esqueci minha senha" chega antes do `#`.** O Firebase
+acrescenta `?mode=resetPassword&oobCode=...` à URL de ação, que é a raiz do
+app; com a estratégia de hash, o go_router não vê essa query. Quem a lê é
+`AuthActionLink.fromLaunch()`, uma vez, e já a apaga da barra de endereço —
+senão um F5 reabriria a tela com o código gasto. A rota `/redefinir-senha`
+passa no `redirect` **antes** da espera pelo Auth: ir para a splash perderia
+o código.
+
 **Rotas usam `ShellRoute`, não `StatefulShellRoute`** — este último não aceita
 raiz de branch parametrizada, e todas as rotas internas são
 `/viagem/:tripId/...`.
