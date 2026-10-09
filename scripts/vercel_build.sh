@@ -49,4 +49,9 @@ fi
 
 : "${MAPBOX_TOKEN:?falta a variável de ambiente MAPBOX_TOKEN}"
 
-flutter build web --release --dart-define=MAPBOX_TOKEN="$MAPBOX_TOKEN"
+# --pwa-strategy=none: o service worker é o de web/sw.js. O que o
+# Flutter gera desde a 3.41 se desregistra ao ativar, e os dois
+# disputariam o mesmo escopo.
+flutter build web --release \
+  --pwa-strategy=none \
+  --dart-define=MAPBOX_TOKEN="$MAPBOX_TOKEN"
