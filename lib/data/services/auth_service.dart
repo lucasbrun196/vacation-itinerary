@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 
 /// Erro de autenticação já traduzido para uma frase que o usuário
 /// entende. Mensagem crua do Firebase em português técnico não ajuda
@@ -23,13 +24,27 @@ class AuthFailure implements Exception {
         'too-many-requests' => 'Muitas tentativas. Espere um pouco e tente de novo.',
         'network-request-failed' => 'Sem conexão. Verifique sua internet.',
         'operation-not-allowed' =>
-          'Login por e-mail e senha não está ativado no Firebase.',
+          'Esse método de login não está ativado no Firebase.',
+        'popup-blocked' =>
+          'O navegador bloqueou a janela do Google. Libere pop-ups e tente de novo.',
+        'unauthorized-domain' =>
+          'Este endereço não está autorizado no Firebase Auth.',
+        'account-exists-with-different-credential' =>
+          'Esse e-mail já tem conta com senha. Entre com e-mail e senha.',
+        'user-mismatch' => 'Escolha a mesma conta Google com que você entrou.',
         'requires-recent-login' => 'Faça login de novo para concluir essa ação.',
         _ => 'Não deu para concluir. Tente novamente.',
       });
 }
 
-/// Autenticação por e-mail e senha. É a única forma de entrar no app.
+/// A pessoa fechou a janela do Google sem escolher conta.
+///
+/// Não é erro: quem chama simplesmente para, sem mostrar mensagem.
+class AuthCancelled implements Exception {
+  const AuthCancelled();
+}
+
+/// Autenticação por e-mail e senha ou pela conta Google.
 class AuthService {
   AuthService(this._auth);
 
@@ -40,6 +55,56 @@ class AuthService {
   String? get uid => _auth.currentUser?.uid;
 
   Stream<User?> authStateChanges() => _auth.authStateChanges();
+
+  /// Se a conta tem senha própria. Quem só entrou pelo Google não tem:
+  /// trocar senha e confirmar com senha não fazem sentido para ela.
+  bool get hasPassword =>
+      _auth.currentUser?.providerData.any((p) => p.providerId == 'password') ?? false;
+
+  /// Na web abre a janela do Google; no Android/iOS, o fluxo nativo do
+  /// próprio Firebase Auth — sem precisar do pacote `google_sign_in`.
+  ///
+  /// O espelho em `users/{uid}` sai do nome e do e-mail da conta Google,
+  /// por `currentUserProvider`, como em qualquer outro login.
+  Future<User> signInWithGoogle() async {
+    try {
+      final credential = kIsWeb
+          ? await _auth.signInWithPopup(_googleProvider())
+          : await _auth.signInWithProvider(_googleProvider());
+      return credential.user!;
+    } on FirebaseAuthException catch (e) {
+      throw _googleFailure(e);
+    }
+  }
+
+  /// Confirma a identidade pela conta Google, para quem não tem senha.
+  Future<void> reauthenticateWithGoogle() async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw const AuthFailure('Faça login de novo para concluir essa ação.');
+    }
+    try {
+      await (kIsWeb
+          ? user.reauthenticateWithPopup(_googleProvider())
+          : user.reauthenticateWithProvider(_googleProvider()));
+    } on FirebaseAuthException catch (e) {
+      throw _googleFailure(e);
+    }
+  }
+
+  /// `select_account` faz o Google perguntar qual conta usar, em vez de
+  /// entrar direto na última — quem divide o computador agradece.
+  GoogleAuthProvider _googleProvider() =>
+      GoogleAuthProvider()..setCustomParameters({'prompt': 'select_account'});
+
+  Exception _googleFailure(FirebaseAuthException e) => switch (e.code) {
+        'popup-closed-by-user' ||
+        'cancelled-popup-request' ||
+        'web-context-canceled' ||
+        'canceled' =>
+          const AuthCancelled(),
+        _ => AuthFailure.fromCode(e.code),
+      };
 
   Future<User> signIn({required String email, required String password}) async {
     try {

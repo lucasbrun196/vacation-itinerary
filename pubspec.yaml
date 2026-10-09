@@ -33,6 +33,7 @@ dependencies:
   url_launcher: ^6.3.2
   uuid: ^4.6.0
   video_player: ^2.11.1
+  flutter_svg: ^2.3.0
 
 # Correção temporária: firebase_core_web 3.11.0 não compila no Dart 3.11.
 # Detalhes e instruções de remoção em third_party/firebase_core_web/PATCH.md
@@ -47,6 +48,6 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-
   assets:
+    - assets/icons/
     - assets/images/

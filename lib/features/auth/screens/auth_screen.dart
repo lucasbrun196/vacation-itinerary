@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../../../app/providers.dart';
 import '../../../core/extensions/context_ext.dart';
@@ -11,7 +13,7 @@ import '../../../shared/widgets/feedback/error_banner.dart';
 
 enum AuthMode { signIn, signUp }
 
-/// Entrada do app. E-mail e senha, nada mais.
+/// Entrada do app: e-mail e senha, ou a conta Google.
 class AuthScreen extends ConsumerStatefulWidget {
   const AuthScreen({super.key});
 
@@ -70,6 +72,26 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 
       // Daqui não navegamos: o router observa o Firebase Auth, e o
       // espelho em `users/{uid}` é criado por currentUserProvider.
+    } on AuthFailure catch (e) {
+      if (mounted) setState(() => _error = e.message);
+    } catch (_) {
+      if (mounted) setState(() => _error = 'Algo deu errado. Tente de novo.');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _signInWithGoogle() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    try {
+      await ref.read(authServiceProvider).signInWithGoogle();
+      // Como no e-mail e senha: quem navega é o router.
+    } on AuthCancelled {
+      // Fechou a janela do Google. Nada a avisar.
     } on AuthFailure catch (e) {
       if (mounted) setState(() => _error = e.message);
     } catch (_) {
@@ -253,7 +275,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
               },
             ),
 
-            if (!_isSignUp)
+            if (!_isSignUp) ...[
+              Gap.vSm,
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton(
@@ -261,6 +284,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                   child: const Text('Esqueci minha senha'),
                 ),
               ),
+            ],
 
             if (_error != null) ...[
               Gap.vMd,
@@ -281,6 +305,10 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                     )
                   : Text(_isSignUp ? 'Criar conta' : 'Entrar'),
             ),
+            Gap.vLg,
+            const _OrDivider(),
+            Gap.vLg,
+            _GoogleButton(onPressed: _loading ? null : _signInWithGoogle),
             Gap.vMd,
             // `Wrap`, não `Row`: a pergunta e o botão passam
             // dos 264px do cartão em tela estreita, e mais
@@ -302,6 +330,66 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
           ],
         ),
       );
+  }
+}
+
+class _OrDivider extends StatelessWidget {
+  const _OrDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        const Expanded(child: Divider()),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: Gap.md),
+          child: Text('ou', style: context.text.bodySmall),
+        ),
+        const Expanded(child: Divider()),
+      ],
+    );
+  }
+}
+
+/// O botão "Sign in with Google" nas cores e na fonte das diretrizes de
+/// marca do Google: fundo branco (ou quase preto no tema escuro), borda
+/// cinza, "G" colorido à esquerda e Roboto Medium. Desenhado em vez de
+/// imagem para poder esticar até a largura do cartão sem deformar.
+class _GoogleButton extends StatelessWidget {
+  const _GoogleButton({required this.onPressed});
+
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = context.isDark;
+    return Opacity(
+      opacity: onPressed == null ? 0.5 : 1,
+      child: OutlinedButton(
+        onPressed: onPressed,
+        style: OutlinedButton.styleFrom(
+          backgroundColor: dark ? const Color(0xFF131314) : Colors.white,
+          foregroundColor: dark ? const Color(0xFFE3E3E3) : const Color(0xFF1F1F1F),
+          disabledForegroundColor:
+              dark ? const Color(0xFFE3E3E3) : const Color(0xFF1F1F1F),
+          side: BorderSide(
+            color: dark ? const Color(0xFF8E918F) : const Color(0xFF747775),
+          ),
+          textStyle: GoogleFonts.roboto(fontSize: 14, fontWeight: FontWeight.w500),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SvgPicture.asset('assets/icons/google.svg', width: 18, height: 18),
+            Gap.hMd,
+            const Flexible(
+              child: Text('Sign in with Google', overflow: TextOverflow.ellipsis),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
