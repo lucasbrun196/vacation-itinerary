@@ -4,6 +4,7 @@ import 'package:uuid/uuid.dart';
 import '../models/attachment.dart';
 import '../models/bill.dart';
 import '../models/bill_entry.dart';
+import '../models/bill_settlement.dart';
 import '../models/bill_share.dart';
 import '../models/enums.dart';
 import '../services/firestore_refs.dart';
@@ -60,20 +61,56 @@ class BillRepository {
   /// Os ids das cotas são determinísticos (`parcela_pessoa`), então uma
   /// cota já paga mantém comprovante e data mesmo se o valor mudar.
   Future<void> updateBill(String tripId, Bill bill) async {
-    final existing = await _refs.shares(tripId, bill.id).get();
-    final byId = {for (final doc in existing.docs) doc.id: BillShare.fromDoc(doc)};
-
-    final regenerated = bill.isAccumulating && bill.status == BillStatus.open
-        ? <BillShare>[]
-        : bill.generateShares(tripId: tripId);
+    final regenerated = !bill.isAccumulating
+        ? bill.generateShares(tripId: tripId)
+        : bill.status == BillStatus.open
+            ? <BillShare>[]
+            : await _settlementShares(tripId, bill);
 
     final batch = _refs.db.batch();
     batch.set(_refs.bill(tripId, bill.id), bill.toMap(), SetOptions(merge: true));
+    await _replaceShares(batch, tripId, bill, regenerated);
+    await batch.commit();
+  }
+
+  /// As cotas do acerto de uma conta aberta, a partir dos lançamentos.
+  Future<List<BillShare>> _settlementShares(String tripId, Bill bill) async {
+    final entries = await _refs.entries(tripId, bill.id).get();
+    return BillSettlement.of(bill, entries.docs.map(BillEntry.fromDoc).toList())
+        .toShares(tripId: tripId, billId: bill.id);
+  }
+
+  /// Troca as cotas da conta por [regenerated], levando o pagamento de
+  /// cada cota antiga para a nova equivalente e apagando as que sumiram
+  /// (participante removido, menos parcelas, transferência que deixou de
+  /// existir).
+  ///
+  /// "Equivalente" é a mesma parcela, do mesmo devedor, para o mesmo
+  /// credor — e não o mesmo id: no acerto de conta aberta, a cota antiga
+  /// `1_{uid}` (de quando só quem bancou a conta recebia) vira
+  /// `1_{uid}_{credor}`, e o pagamento dela não pode se perder.
+  Future<void> _replaceShares(
+    WriteBatch batch,
+    String tripId,
+    Bill bill,
+    List<BillShare> regenerated,
+  ) async {
+    final existing = await _refs.shares(tripId, bill.id).get();
+
+    String key(BillShare s) => [
+          s.installmentNumber ?? 1,
+          s.memberId,
+          s.isOwnerShare ? '' : s.creditorId ?? bill.paidByMemberId,
+        ].join('_');
+
+    final byKey = {
+      for (final doc in existing.docs) key(BillShare.fromDoc(doc)): BillShare.fromDoc(doc),
+    };
 
     final keep = <String>{};
     for (final share in regenerated) {
       keep.add(share.id);
-      final old = byId[share.id];
+      final old = byKey[key(share)];
       final merged = old == null
           ? share
           : share.copyWith(
@@ -87,14 +124,9 @@ class BillRepository {
       batch.set(_refs.shares(tripId, bill.id).doc(share.id), merged.toMap());
     }
 
-    // Cotas que sumiram (participante removido, menos parcelas).
-    for (final id in byId.keys) {
-      if (!keep.contains(id)) {
-        batch.delete(_refs.shares(tripId, bill.id).doc(id));
-      }
+    for (final doc in existing.docs) {
+      if (!keep.contains(doc.id)) batch.delete(doc.reference);
     }
-
-    await batch.commit();
   }
 
   /// Apaga a conta, suas subcoleções e os arquivos no Storage.
@@ -261,22 +293,25 @@ class BillRepository {
     await _storage.delete(receipt.storagePath);
   }
 
-  /// Fecha uma conta aberta: congela o total e gera as cotas.
+  /// Fecha uma conta aberta: congela o total e gera o acerto — quem
+  /// transfere quanto para quem, conforme quem bancou cada lançamento.
   Future<void> closeAccumulatingBill(String tripId, Bill bill) async {
-    final shares = bill.generateShares(
-      tripId: tripId,
-      overrideTotalCents: bill.entriesTotalCents,
-    );
-    final batch = _refs.db.batch();
+    final entries = await _refs.entries(tripId, bill.id).get();
+    final settlement =
+        BillSettlement.of(bill, entries.docs.map(BillEntry.fromDoc).toList());
 
+    final batch = _refs.db.batch();
     batch.update(_refs.bill(tripId, bill.id), {
       'status': BillStatus.settled.name,
-      'totalAmountCents': bill.entriesTotalCents,
+      'totalAmountCents': settlement.totalCents,
       'updatedAt': FieldValue.serverTimestamp(),
     });
-    for (final share in shares) {
-      batch.set(_refs.shares(tripId, bill.id).doc(share.id), share.toMap(), SetOptions(merge: true));
-    }
+    await _replaceShares(
+      batch,
+      tripId,
+      bill,
+      settlement.toShares(tripId: tripId, billId: bill.id),
+    );
 
     await batch.commit();
   }

@@ -28,6 +28,7 @@ import '../../../shared/widgets/media/attachment_tile.dart';
 import '../controllers/money_controllers.dart';
 import '../widgets/bill_form_sheet.dart';
 import '../widgets/entry_form_sheet.dart';
+import '../widgets/settlement_section.dart';
 import '../widgets/share_payment_sheet.dart';
 
 class BillDetailScreen extends ConsumerWidget {
@@ -92,7 +93,7 @@ class _BillDetailBody extends ConsumerWidget {
                       _SharesSection(bill: bill, shares: sharesAsync.valueOrNull ?? const []),
                     if (bill.isAccumulating && bill.status == BillStatus.settled) ...[
                       Gap.vXl,
-                      _SharesSection(bill: bill, shares: sharesAsync.valueOrNull ?? const []),
+                      SettlementSection(bill: bill),
                     ],
                     if (bill.notes != null && bill.notes!.isNotEmpty) ...[
                       Gap.vXl,
@@ -201,9 +202,20 @@ class _BillHeader extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final owner = bill.paidByMemberId == null
-        ? null
-        : ref.watch(membersByIdProvider)[bill.paidByMemberId];
+    final membersById = ref.watch(membersByIdProvider);
+    // Em conta aberta cada lançamento tem o seu pagador: o rótulo diz quem
+    // bancou de fato, e não só quem foi marcado no cadastro.
+    final payerIds = bill.isAccumulating
+        ? {
+            for (final e in ref.watch(billEntriesProvider(bill.id)).valueOrNull ?? const [])
+              ?e.paidByMemberId ?? bill.paidByMemberId,
+          }
+        : {?bill.paidByMemberId};
+    final payerLabel = payerIds.length > 1
+        ? '${payerIds.length} pessoas bancaram'
+        : payerIds.isEmpty || membersById[payerIds.first] == null
+            ? null
+            : '${membersById[payerIds.first]!.shortName} bancou';
 
     return GradientCard(
       gradient: LinearGradient(
@@ -266,10 +278,10 @@ class _BillHeader extends ConsumerWidget {
                   ),
                 ),
                 const Spacer(),
-                if (owner != null)
+                if (payerLabel != null)
                   Flexible(
                     child: Text(
-                      '${owner.shortName} bancou',
+                      payerLabel,
                       style: context.text.bodySmall?.copyWith(color: Colors.white70),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -599,12 +611,14 @@ class _EntryTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final payer = ref.watch(membersByIdProvider)[entry.paidByMemberId ?? bill.paidByMemberId];
+
     return GlassCard(
       padding: const EdgeInsets.symmetric(horizontal: Gap.lg, vertical: Gap.md),
       onTap: bill.status == BillStatus.settled
           ? null
           : () => showEntryForm(context, bill: bill, entry: entry),
-      child: _EntryTileBody(bill: bill, entry: entry, ref: ref),
+      child: _EntryTileBody(bill: bill, entry: entry, payer: payer, ref: ref),
     );
   }
 }
@@ -615,10 +629,16 @@ class _EntryTile extends ConsumerWidget {
 /// linha deixavam ~40px para a descrição, que quebrava em cinco linhas de
 /// duas letras. Em tela estreita as ações descem para uma segunda linha.
 class _EntryTileBody extends StatelessWidget {
-  const _EntryTileBody({required this.bill, required this.entry, required this.ref});
+  const _EntryTileBody({
+    required this.bill,
+    required this.entry,
+    required this.payer,
+    required this.ref,
+  });
 
   final Bill bill;
   final BillEntry entry;
+  final Member? payer;
   final WidgetRef ref;
 
   @override
@@ -661,12 +681,22 @@ class _EntryTileBody extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
-          entry.description,
+          // A descrição é opcional: sem ela, o lançamento leva o nome da
+          // categoria, que na gasolina já diz tudo.
+          entry.description.isEmpty ? bill.category.label : entry.description,
           style: context.text.titleSmall,
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
         ),
-        Text(Fmt.dateWithYear(entry.date), style: context.text.bodySmall),
+        Text(
+          [
+            if (payer != null) '${payer!.shortName} pagou',
+            Fmt.dateWithYear(entry.date),
+          ].join(' · '),
+          style: context.text.bodySmall,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
       ],
     );
 
@@ -773,7 +803,8 @@ class _AccumulatingFooter extends ConsumerWidget {
         title: const Text('Fechar a conta?'),
         content: Text(
           'O total de ${Money.format(bill.entriesTotalCents)} será dividido entre '
-          '${bill.participantIds.length} pessoas e as cotas serão geradas. '
+          '${bill.participantIds.length} pessoas. O app soma quanto cada um pagou '
+          'e calcula quem transfere quanto para quem. '
           'Você pode reabrir depois se precisar lançar mais.',
         ),
         actions: [
