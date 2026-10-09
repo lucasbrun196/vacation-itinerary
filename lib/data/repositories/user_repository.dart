@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart' as fb;
 
 import '../models/app_user.dart';
 import '../services/firestore_refs.dart';
+import '../services/sync_status_service.dart';
 
 class UserRepository {
   UserRepository(this._refs);
@@ -36,6 +37,21 @@ class UserRepository {
 
   Stream<AppUser?> watchUser(String uid) =>
       _refs.user(uid).snapshots().map((doc) => doc.exists ? AppUser.fromDoc(doc) : null);
+
+  /// De onde vem o dado e se há escrita na fila, para o app saber se
+  /// está offline.
+  ///
+  /// O documento do próprio usuário serve de sonda porque existe desde
+  /// o login e não depende de viagem aberta. `includeMetadataChanges`
+  /// é o que faz o Firestore avisar quando só o metadado muda — sem
+  /// ele, o snapshot do cache seria o último até o dado mudar.
+  Stream<SyncMetadata> watchSyncMetadata(String uid) =>
+      _refs.user(uid).snapshots(includeMetadataChanges: true).map(
+            (doc) => SyncMetadata(
+              isFromCache: doc.metadata.isFromCache,
+              hasPendingWrites: doc.metadata.hasPendingWrites,
+            ),
+          );
 
   /// Procura uma conta pelo e-mail.
   ///
