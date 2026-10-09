@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
+import '../../core/utils/initials.dart';
 import 'app_user.dart';
 
 /// Participante de uma viagem. O id **é o uid** da conta, o que liga
@@ -52,6 +53,9 @@ class Member {
       colorValue != null ? Color(colorValue!) : palette[order % palette.length];
 
   String get shortName => name.trim().split(RegExp(r'\s+')).first;
+
+  /// O que o avatar mostra. O `emoji` continua salvo, mas não aparece mais.
+  String get initials => initialsOf(name);
 
   /// Cria o membro a partir de uma conta existente.
   factory Member.fromUser(AppUser user, {required int order, bool isAdmin = false}) => Member(

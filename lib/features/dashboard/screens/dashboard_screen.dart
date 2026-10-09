@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -12,450 +11,481 @@ import '../../../core/theme/app_tokens.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/utils/money.dart';
-import '../../../data/models/bill.dart';
+import '../../../data/models/itinerary_item.dart';
+import '../../../data/models/member.dart';
+import '../../../data/models/trip.dart';
 import '../../../shared/widgets/cards/glass_card.dart';
-import '../../../shared/widgets/cards/stat_card.dart';
+import '../../../shared/widgets/domain/member_avatar.dart';
+import '../../../shared/widgets/effects/grid_backdrop.dart';
 import '../../../shared/widgets/feedback/animated_progress_bar.dart';
-import '../../../shared/widgets/feedback/loading_shimmer.dart';
 import '../../../shared/widgets/layout/app_page.dart';
 import '../../../shared/widgets/layout/section_header.dart';
-import '../../../shared/widgets/layout/stat_grid.dart';
+import '../../../shared/widgets/layout/stat_strip.dart';
 import '../../expenses/controllers/money_controllers.dart';
-import '../widgets/trip_hero.dart';
+import '../../expenses/widgets/bill_form_sheet.dart';
+import '../../itinerary/widgets/itinerary_form_sheet.dart';
+import '../../itinerary/widgets/itinerary_row.dart';
+
+/// A partir desta largura o roteiro e o acerto ficam lado a lado.
+const _twoColumns = 880.0;
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final tripAsync = ref.watch(tripProvider);
-    final user = ref.watch(currentUserProvider).valueOrNull;
-    final members = ref.watch(membersProvider).valueOrNull ?? const [];
-    final overview = ref.watch(moneyOverviewProvider);
-    final bills = ref.watch(billsProvider).valueOrNull ?? const <Bill>[];
-    final tripId = ref.watch(currentTripIdProvider);
-
-    final trip = tripAsync.valueOrNull;
+    final trip = ref.watch(tripProvider).valueOrNull;
+    final members = ref.watch(membersProvider).valueOrNull ?? const <Member>[];
 
     return AppPage(
-      title: user == null ? 'Olá!' : 'Olá, ${user.shortName}',
-      emoji: '🌴',
-      subtitle: 'Aqui está o resumo da viagem',
+      title: trip?.name ?? '',
+      header: trip == null ? null : _Hero(trip: trip, facts: _facts(trip, members.length)),
       children: [
-        if (trip == null)
-          const ShimmerBox(height: 200, borderRadius: Radii.brXl)
-        else
-          TripHero(trip: trip, memberCount: members.length),
-
+        const _MoneyStrip(),
         Gap.vXl,
-        const SectionHeader(title: 'Dinheiro', icon: Icons.savings_rounded),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            if (constraints.maxWidth < _twoColumns) {
+              return const Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [_ItineraryTable(), Gap.vXl, _SettlementPanel()],
+              );
+            }
+            return const Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(flex: 3, child: _ItineraryTable()),
+                Gap.hXl,
+                Expanded(flex: 2, child: _SettlementPanel()),
+              ],
+            );
+          },
+        ),
+      ],
+    );
+  }
 
-        if (bills.isEmpty)
-          _StartHere(
-            icon: Icons.account_balance_wallet_rounded,
-            title: 'Nenhuma conta cadastrada',
-            message: 'Cadastre o aluguel, a gasolina e os rolês para o app '
-                'dividir entre a turma.',
-            actionLabel: 'Criar primeira conta',
-            accent: AppColors.sunset,
-            onAction: () => context.go(Routes.tripSection(tripId, AppDestination.expenses)),
-          )
-        else ...[
-          StatGrid(
-            children: [
-              StatCard(
-                label: 'Total das contas',
-                value: overview.totalCents.toReais,
-                icon: Icons.receipt_long_rounded,
-                accent: AppColors.coral,
-                footnote: '${overview.billCount} '
-                    '${overview.billCount == 1 ? "conta" : "contas"}',
-                onTap: () =>
-                    context.go(Routes.tripSection(tripId, AppDestination.expenses)),
-              ),
-              StatCard(
-                label: 'Já quitado',
-                value: overview.paidCents.toReais,
-                icon: Icons.check_circle_rounded,
-                accent: AppColors.success,
-                footnote: Fmt.percent(overview.progress),
-                onTap: () =>
-                    context.go(Routes.tripSection(tripId, AppDestination.expenses)),
-              ),
-              StatCard(
-                label: 'Falta pagar',
-                value: overview.pendingCents.toReais,
-                icon: Icons.pending_actions_rounded,
-                accent: AppColors.sunset,
-                footnote: '${overview.openBillCount} em aberto',
-                onTap: () =>
-                    context.go(Routes.tripSection(tripId, AppDestination.expenses)),
-              ),
+  /// "Florianópolis, SC · 27/12/2026 – 03/01/2027 · 4 participantes"
+  static String _facts(Trip trip, int memberCount) => [
+        if (trip.destination.isNotEmpty) trip.destination,
+        if (trip.hasDates)
+          '${Fmt.dateShortWithYear(trip.startDate!)} – ${Fmt.dateShortWithYear(trip.endDate!)}',
+        if (memberCount > 0) '$memberCount ${memberCount == 1 ? "participante" : "participantes"}',
+      ].join(' · ');
+}
+
+/// O topo do Resumo: a contagem, o nome da viagem e a linha de fatos sobre
+/// o painel de grade.
+class _Hero extends StatelessWidget {
+  const _Hero({required this.trip, required this.facts});
+
+  final Trip trip;
+  final String facts;
+
+  @override
+  Widget build(BuildContext context) {
+    return GridBackdrop(
+      padding: EdgeInsets.all(context.isMobile ? Gap.xl : Gap.xxl),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _CountdownTag(trip: trip),
+          Gap.vLg,
+          Text(
+            trip.name,
+            style: context.isMobile ? context.text.headlineLarge : context.text.displayMedium,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+          if (facts.isNotEmpty) ...[
+            Gap.vSm,
+            Text(facts, style: context.text.bodyMedium?.copyWith(color: context.colors.onSurfaceVariant)),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// A contagem da viagem numa etiqueta mono: "T–79 dias", "Dia 3/8".
+class _CountdownTag extends StatelessWidget {
+  const _CountdownTag({required this.trip});
+
+  final Trip trip;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = switch (trip) {
+      _ when !trip.hasDates => null,
+      _ when trip.daysUntilStart > 1 => 'T–${trip.daysUntilStart} dias',
+      _ when trip.daysUntilStart == 1 => 'T–1 dia',
+      _ when trip.isOngoing => 'Dia ${trip.currentDay}/${trip.totalDays}',
+      _ => 'Concluída',
+    };
+    if (label == null) return const SizedBox.shrink();
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: Gap.sm, vertical: Gap.xs),
+      decoration: BoxDecoration(
+        color: context.colors.surface,
+        borderRadius: Radii.brSm,
+        border: Border.all(color: context.colors.outline),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (!trip.isFinished) ...[const _PulseDot(), Gap.hSm],
+          Text(label, style: AppTypography.mono(size: 12, color: context.colors.onSurface)),
+        ],
+      ),
+    );
+  }
+}
+
+/// O ponto verde de "em andamento": pulsa devagar enquanto a viagem não
+/// acabou. Parado quando o sistema pede menos movimento.
+class _PulseDot extends StatefulWidget {
+  const _PulseDot();
+
+  @override
+  State<_PulseDot> createState() => _PulseDotState();
+}
+
+class _PulseDotState extends State<_PulseDot> with SingleTickerProviderStateMixin {
+  late final AnimationController _controller =
+      AnimationController(vsync: this, duration: const Duration(milliseconds: 1600));
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (context.reduceMotion) {
+      _controller.value = 1;
+    } else if (!_controller.isAnimating) {
+      _controller.repeat(reverse: true);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final color = context.colors.primary;
+
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, _) {
+        final t = Curves.easeInOut.transform(_controller.value);
+        return Container(
+          width: 7,
+          height: 7,
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(color: color.withValues(alpha: 0.35 * t), blurRadius: 0, spreadRadius: 3 * t),
             ],
           ),
-          Gap.vMd,
-          _BudgetCard(overview: overview, budgetCents: trip?.budgetCents),
-          const _MyPendingSummary(),
-        ],
+        );
+      },
+    );
+  }
+}
 
-        Gap.vXl,
-        SectionHeader(
-          title: 'Roteiro',
-          icon: Icons.explore_rounded,
-          actionLabel: 'Abrir',
-          onAction: () => context.go(Routes.tripSection(tripId, AppDestination.itinerary)),
-        ),
-        const _NextActivity(),
+/// Total, Pago, Falta e Você deve, numa faixa só.
+class _MoneyStrip extends ConsumerWidget {
+  const _MoneyStrip();
 
-        Gap.vXl,
-        SectionHeader(
-          title: 'Mural',
-          icon: Icons.photo_camera_rounded,
-          actionLabel: 'Abrir',
-          onAction: () => context.go(Routes.tripSection(tripId, AppDestination.board)),
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final overview = ref.watch(moneyOverviewProvider);
+    final pending = ref.watch(myPendingSharesProvider);
+    final iOwe = pending.fold<int>(0, (sum, s) => sum + s.remainingCents);
+    final next = pending.isEmpty ? null : pending.first;
+
+    return StatStrip(
+      cells: [
+        StatCell.money(
+          label: 'Total',
+          color: AppColors.sky,
+          cents: overview.totalCents,
+          footnote: '${overview.billCount} ${overview.billCount == 1 ? "conta" : "contas"}',
         ),
-        _StartHere(
-          icon: Icons.photo_library_rounded,
-          title: 'O mural chega em breve',
-          message: 'Aqui vão aparecer as últimas fotos da turma.',
-          accent: AppColors.grape,
+        StatCell.money(
+          label: 'Pago',
+          color: AppColors.success,
+          cents: overview.paidCents,
+          footnote: Fmt.percent(overview.progress),
+        ),
+        StatCell.money(
+          label: 'Falta',
+          color: AppColors.sunset,
+          cents: overview.pendingCents,
+          footnote: '${overview.openBillCount} em aberto',
+        ),
+        StatCell.money(
+          label: 'Você deve',
+          color: AppColors.coral,
+          cents: iOwe,
+          highlight: true,
+          footnote: next == null
+              ? 'nada pendente'
+              : [
+                  'próx. ${Money.format(next.remainingCents)}',
+                  if (next.dueDate != null) 'vence ${Fmt.dateShort(next.dueDate!)}',
+                ].join(' · '),
         ),
       ],
     );
   }
 }
 
-/// A próxima parada do roteiro que ainda vai acontecer.
-class _NextActivity extends ConsumerWidget {
-  const _NextActivity();
+/// As próximas atividades, em tabela, agrupadas por dia.
+class _ItineraryTable extends ConsumerWidget {
+  const _ItineraryTable();
+
+  /// Bastante para dar a cara dos próximos dias sem virar o roteiro inteiro.
+  static const _maxRows = 10;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tripId = ref.watch(currentTripIdProvider);
-    final item = ref.watch(nextItineraryItemProvider);
-    final total = (ref.watch(itineraryProvider).valueOrNull ?? const []).length;
+    final allDays = ref.watch(itineraryDaysProvider);
+    final today = DateTime.now().dateOnly;
 
-    if (item == null) {
-      return _StartHere(
-        icon: Icons.map_rounded,
-        title: total == 0 ? 'Roteiro vazio' : 'Nada mais marcado',
-        message: total == 0
-            ? 'Cadastre o primeiro passeio e ligue à conta dele.'
-            : 'Todas as atividades já passaram ou foram concluídas.',
-        accent: AppColors.turquoise,
-        actionLabel: 'Abrir roteiro',
-        onAction: () =>
-            context.go(Routes.tripSection(tripId, AppDestination.itinerary)),
-      );
+    // Do dia de hoje em diante; com a viagem já encerrada, o roteiro todo.
+    final upcoming = allDays.where((d) => !d.date.dateOnly.isBefore(today)).toList();
+    final source = upcoming.isEmpty ? allDays : upcoming;
+
+    final shown = <ItineraryDay>[];
+    var rows = 0;
+    for (final day in source) {
+      if (rows >= _maxRows) break;
+      shown.add(day);
+      rows += day.items.length;
     }
+    final total = allDays.fold<int>(0, (sum, d) => sum + d.items.length);
+    void open() => context.go(Routes.tripSection(tripId, AppDestination.itinerary));
 
-    final when = item.startAt ?? item.date;
-    final diff = when.difference(DateTime.now());
-    final countdown = diff.isNegative
-        ? 'acontecendo agora'
-        : diff.inHours < 1
-            ? 'em ${diff.inMinutes} min'
-            : diff.inHours < 24
-                ? 'em ${diff.inHours}h'
-                : 'em ${diff.inDays} ${diff.inDays == 1 ? "dia" : "dias"}';
-
-    return GlassCard(
-      accent: item.category.color,
-      onTap: () => context.go(Routes.tripSection(tripId, AppDestination.itinerary)),
-      child: Row(
-        children: [
-          Container(
-            width: 54,
-            height: 54,
-            decoration: BoxDecoration(
-              color: item.category.color.withValues(alpha: 0.14),
-              borderRadius: Radii.brMd,
-            ),
-            child: Icon(item.category.icon, color: item.category.color, size: 24),
-          )
-              .animate(onPlay: (c) => c.repeat(reverse: true))
-              .scaleXY(begin: 1, end: 1.05, duration: 2000.ms, curve: Curves.easeInOut),
-          Gap.hLg,
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: Gap.sm, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: item.category.color.withValues(alpha: 0.14),
-                    borderRadius: Radii.brPill,
-                  ),
-                  child: Text(
-                    countdown,
-                    style: context.text.labelSmall?.copyWith(
-                      color: item.category.color,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-                Gap.vSm,
-                Text(
-                  item.title,
-                  style: context.text.titleMedium,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                Gap.vXs,
-                Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SectionHeader(
+          title: 'Roteiro',
+          actionLabel: total == 0 ? null : 'Ver tudo',
+          onAction: total == 0 ? null : open,
+        ),
+        GlassCard(
+          padding: EdgeInsets.zero,
+          child: total == 0
+              ? _EmptyRow(
+                  message: 'Nenhuma atividade no roteiro.',
+                  actionLabel: 'Nova atividade',
+                  onAction: () => showItineraryForm(context),
+                )
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Icon(
-                      item.hasTime ? Icons.schedule_rounded : Icons.event_rounded,
-                      size: 13,
-                      color: context.colors.onSurfaceVariant,
+                    const ItineraryTableHeader(detailed: false),
+                    for (final (d, day) in shown.indexed) ...[
+                      if (d > 0) const Divider(),
+                      _DayLabel(day: day),
+                      for (final item in day.items) ItineraryRow(item: item, detailed: false),
+                    ],
+                  ],
+                ),
+        ),
+      ],
+    );
+  }
+}
+
+class _DayLabel extends StatelessWidget {
+  const _DayLabel({required this.day});
+
+  final ItineraryDay day;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: context.colors.surfaceContainerLow,
+      padding: const EdgeInsets.symmetric(horizontal: Gap.lg, vertical: 6),
+      child: Text(
+        [
+          '${Fmt.weekdayShort(day.date)} ${Fmt.dateShort(day.date)}'.toUpperCase(),
+          if (day.isToday) 'hoje',
+        ].join(' · '),
+        style: AppTypography.mono(
+          size: 11,
+          weight: FontWeight.w600,
+          color: context.colors.onSurfaceVariant,
+        ),
+      ),
+    );
+  }
+}
+
+/// Quanto já foi pago e o saldo de cada um.
+class _SettlementPanel extends ConsumerWidget {
+  const _SettlementPanel();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final overview = ref.watch(moneyOverviewProvider);
+    final members = ref.watch(membersProvider).valueOrNull ?? const <Member>[];
+    final balances = ref.watch(memberBalancesProvider);
+    final uid = ref.watch(currentUidProvider);
+    final budget = ref.watch(tripProvider).valueOrNull?.budgetCents ?? 0;
+    final muted = context.colors.onSurfaceVariant;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SectionHeader(title: 'Acerto'),
+        GlassCard(
+          padding: EdgeInsets.zero,
+          child: overview.billCount == 0
+              ? _EmptyRow(
+                  message: 'Nenhuma conta cadastrada.',
+                  actionLabel: 'Nova conta',
+                  onAction: () => showBillForm(context),
+                )
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(Gap.lg),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _ProgressLine(
+                            label: 'Pago',
+                            value: overview.progress,
+                            detail: '${Money.format(overview.paidCents)} de '
+                                '${Money.format(overview.totalCents)}',
+                          ),
+                          if (budget > 0) ...[
+                            Gap.vLg,
+                            _ProgressLine(
+                              label: 'Orçamento',
+                              value: overview.totalCents / budget,
+                              detail: '${Money.format(overview.totalCents)} de '
+                                  '${Money.format(budget)}',
+                            ),
+                          ],
+                        ],
+                      ),
                     ),
-                    Gap.hXs,
-                    Text(
-                      item.hasTime
-                          ? '${Fmt.dateShort(item.date)} · ${Fmt.time(item.startAt!)}'
-                          : Fmt.dateShort(item.date),
-                      style: context.text.bodySmall,
-                    ),
-                    if (item.placeName != null) ...[
-                      Gap.hSm,
-                      Icon(Icons.place_outlined,
-                          size: 13, color: context.colors.onSurfaceVariant),
-                      Gap.hXs,
-                      Expanded(
-                        child: Text(
-                          item.placeName!,
-                          style: context.text.bodySmall,
-                          overflow: TextOverflow.ellipsis,
-                        ),
+                    const Divider(),
+                    for (final (i, member) in members.indexed) ...[
+                      if (i > 0) const Divider(),
+                      _BalanceRow(
+                        member: member,
+                        cents: balances[member.id] ?? 0,
+                        isMe: member.id == uid,
+                      ),
+                    ],
+                    if (members.isNotEmpty) ...[
+                      const Divider(),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: Gap.lg, vertical: Gap.sm),
+                        child: Text('+ a receber   − a pagar',
+                            style: context.text.labelSmall?.copyWith(color: muted)),
                       ),
                     ],
                   ],
                 ),
-              ],
-            ),
-          ),
-          Icon(Icons.chevron_right_rounded, color: AppColors.inkFaint),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
 
-/// Progresso do pagamento — e do orçamento, quando a viagem tem um.
-class _BudgetCard extends StatelessWidget {
-  const _BudgetCard({required this.overview, this.budgetCents});
-
-  final MoneyOverview overview;
-  final int? budgetCents;
-
-  @override
-  Widget build(BuildContext context) {
-    final budget = budgetCents ?? 0;
-    final usage = budget <= 0 ? null : (overview.totalCents / budget).clamp(0.0, 1.0);
-
-    return GlassCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (usage != null) ...[
-            Row(
-              children: [
-                Expanded(child: Text('Orçamento da viagem', style: context.text.titleMedium)),
-                Text(
-                  Fmt.percent(usage),
-                  style: AppTypography.money(
-                    size: 18,
-                    color: AnimatedProgressBar.colorFor(usage),
-                  ),
-                ),
-              ],
-            ),
-            Gap.vMd,
-            AnimatedProgressBar(value: usage, height: 12),
-            Gap.vSm,
-            Row(
-              children: [
-                Text('${Money.format(overview.totalCents)} em contas',
-                    style: context.text.bodySmall),
-                const Spacer(),
-                Text('de ${Money.format(budget)}', style: context.text.bodySmall),
-              ],
-            ),
-            Gap.vLg,
-            Divider(color: context.colors.outline),
-            Gap.vLg,
-          ],
-          Row(
-            children: [
-              Expanded(child: Text('Quanto já foi acertado', style: context.text.titleMedium)),
-              Text(
-                Fmt.percent(overview.progress),
-                style: AppTypography.money(size: 18, color: AppColors.success),
-              ),
-            ],
-          ),
-          Gap.vMd,
-          AnimatedProgressBar(value: overview.progress, height: 12, color: AppColors.success),
-          Gap.vSm,
-          Text(
-            overview.pendingCents == 0
-                ? 'Tudo acertado 🎉'
-                : 'Faltam ${Money.format(overview.pendingCents)} para acertar tudo',
-            style: context.text.bodySmall,
-          ),
-        ],
-      ),
-    ).animate().fadeIn(delay: 150.ms, duration: Motion.slow).slideY(
-          begin: 0.05,
-          curve: Motion.enter,
-        );
-  }
-}
-
-/// O que você deve, resumido — só aparece quando há pendência sua.
-class _MyPendingSummary extends ConsumerWidget {
-  const _MyPendingSummary();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final pending = ref.watch(myPendingSharesProvider);
-    final owedToMe = ref.watch(owedToMeProvider);
-    final iOwe = pending.fold<int>(0, (sum, s) => sum + s.remainingCents);
-
-    if (iOwe == 0 && owedToMe == 0) return const SizedBox.shrink();
-
-    return Padding(
-      padding: const EdgeInsets.only(top: Gap.md),
-      child: Row(
-        children: [
-          if (iOwe > 0)
-            Expanded(
-              child: _MiniStat(
-                label: 'Você deve',
-                cents: iOwe,
-                color: AppColors.coral,
-                icon: Icons.arrow_upward_rounded,
-              ),
-            ),
-          if (iOwe > 0 && owedToMe > 0) Gap.hMd,
-          if (owedToMe > 0)
-            Expanded(
-              child: _MiniStat(
-                label: 'Devem a você',
-                cents: owedToMe,
-                color: AppColors.success,
-                icon: Icons.arrow_downward_rounded,
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MiniStat extends StatelessWidget {
-  const _MiniStat({
-    required this.label,
-    required this.cents,
-    required this.color,
-    required this.icon,
-  });
+class _ProgressLine extends StatelessWidget {
+  const _ProgressLine({required this.label, required this.value, required this.detail});
 
   final String label;
-  final int cents;
-  final Color color;
-  final IconData icon;
+  final double value;
+  final String detail;
 
   @override
   Widget build(BuildContext context) {
-    return GlassCard(
-      accent: color,
-      padding: const EdgeInsets.all(Gap.md),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Expanded(child: Text(label, style: context.text.titleSmall)),
+            Text(
+              Fmt.percent(value),
+              style: AppTypography.mono(size: 13, color: context.colors.onSurface),
+            ),
+          ],
+        ),
+        Gap.vSm,
+        AnimatedProgressBar(value: value, height: 8),
+        Gap.vSm,
+        Text(detail, style: AppTypography.mono(size: 12, color: context.colors.onSurfaceVariant)),
+      ],
+    );
+  }
+}
+
+class _BalanceRow extends StatelessWidget {
+  const _BalanceRow({required this.member, required this.cents, required this.isMe});
+
+  final Member member;
+  final int cents;
+  final bool isMe;
+
+  @override
+  Widget build(BuildContext context) {
+    final (String text, Color color) = switch (cents) {
+      > 0 => ('+${Money.format(cents)}', context.success),
+      < 0 => ('−${Money.format(-cents)}', context.colors.onSurface),
+      _ => (Money.format(0), context.colors.onSurfaceVariant),
+    };
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: Gap.lg, vertical: 10),
       child: Row(
         children: [
-          Container(
-            padding: const EdgeInsets.all(Gap.sm),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.14),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, size: 16, color: color),
-          ),
+          MemberAvatar(member: member, size: 24),
           Gap.hMd,
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(label, style: context.text.labelSmall),
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    Money.format(cents),
-                    style: AppTypography.money(size: 19, color: color),
-                  ),
-                ),
-              ],
+            child: Text(
+              isMe ? '${member.shortName} (você)' : member.shortName,
+              style: context.text.bodyMedium,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
+          Text(text, style: AppTypography.money(size: 13, color: color)),
         ],
       ),
     );
   }
 }
 
-/// Convite discreto para a próxima ação, no lugar de um bloco vazio.
-class _StartHere extends StatelessWidget {
-  const _StartHere({
-    required this.icon,
-    required this.title,
-    required this.message,
-    required this.accent,
-    this.actionLabel,
-    this.onAction,
-  });
+/// O vazio de um painel: uma linha de texto e o botão para resolver.
+class _EmptyRow extends StatelessWidget {
+  const _EmptyRow({required this.message, required this.actionLabel, required this.onAction});
 
-  final IconData icon;
-  final String title;
   final String message;
-  final Color accent;
-  final String? actionLabel;
-  final VoidCallback? onAction;
+  final String actionLabel;
+  final VoidCallback onAction;
 
   @override
   Widget build(BuildContext context) {
-    return GlassCard(
-      accent: accent,
-      onTap: onAction,
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.md, Gap.sm, Gap.md),
       child: Row(
         children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: accent.withValues(alpha: 0.12),
-              borderRadius: Radii.brMd,
-            ),
-            child: Icon(icon, color: accent, size: 22),
-          ),
-          Gap.hLg,
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(title, style: context.text.titleSmall),
-                Gap.vXs,
-                Text(message, style: context.text.bodySmall),
-              ],
-            ),
-          ),
-          if (actionLabel != null) ...[
-            Gap.hSm,
-            Icon(Icons.chevron_right_rounded, color: accent),
-          ],
+          Expanded(child: Text(message, style: context.text.bodySmall)),
+          TextButton(onPressed: onAction, child: Text(actionLabel)),
         ],
       ),
     );

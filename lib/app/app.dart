@@ -5,6 +5,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 
 import '../core/theme/app_theme.dart';
 import '../shared/widgets/feedback/sync_banner.dart';
+import 'providers.dart';
 import 'router.dart';
 
 class VacationApp extends ConsumerWidget {
@@ -13,12 +14,14 @@ class VacationApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return MaterialApp.router(
-      title: 'Viagem',
+      title: 'WeGoTravel',
       debugShowCheckedModeBanner: false,
       routerConfig: ref.watch(routerProvider),
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
-      themeMode: ThemeMode.light,
+      themeMode: ref.watch(themeModeProvider),
+      themeAnimationDuration: const Duration(milliseconds: 240),
+      themeAnimationCurve: Curves.easeOutCubic,
       locale: const Locale('pt', 'BR'),
       supportedLocales: const [Locale('pt', 'BR')],
       localizationsDelegates: const [

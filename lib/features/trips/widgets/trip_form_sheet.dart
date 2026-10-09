@@ -7,6 +7,7 @@ import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/utils/money.dart';
 import '../../../data/models/trip.dart';
+import '../../../shared/widgets/inputs/date_range_dialog.dart';
 import '../../../shared/widgets/inputs/money_field.dart';
 import '../../../shared/widgets/layout/app_sheet.dart';
 
@@ -14,7 +15,7 @@ Future<String?> showTripForm(BuildContext context, {Trip? trip}) => showAppSheet
       context: context,
       title: trip == null ? 'Nova viagem' : 'Editar viagem',
       subtitle: trip == null
-          ? 'Você vira o admin e pode convidar a turma depois'
+          ? 'Você será o administrador da viagem'
           : trip.name,
       builder: (_) => TripFormSheet(trip: trip),
     );
@@ -60,16 +61,7 @@ class _TripFormSheetState extends ConsumerState<TripFormSheet> {
   }
 
   Future<void> _pickDates() async {
-    final now = DateTime.now();
-    final picked = await showDateRangePicker(
-      context: context,
-      initialDateRange: _dates,
-      firstDate: DateTime(now.year - 1),
-      lastDate: DateTime(now.year + 5),
-      locale: const Locale('pt', 'BR'),
-      helpText: 'Quando é a viagem?',
-      saveText: 'Pronto',
-    );
+    final picked = await showTripDatesDialog(context, initial: _dates);
     if (picked != null) setState(() => _dates = picked);
   }
 

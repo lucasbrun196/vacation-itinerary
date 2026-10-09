@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -8,6 +7,7 @@ import '../../../app/router.dart';
 import '../../../core/extensions/context_ext.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/theme/app_typography.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/utils/money.dart';
 import '../../../data/models/member.dart';
@@ -31,14 +31,11 @@ class TripSettingsScreen extends ConsumerWidget {
     final uid = ref.watch(currentUidProvider);
 
     return AppPage(
-      title: 'Viagem',
-      emoji: '⚙️',
-      subtitle: 'Dados, participantes e sua conta',
+      title: 'Ajustes',
       children: [
         // ---------------- Dados da viagem ----------------
         SectionHeader(
           title: 'Dados da viagem',
-          icon: Icons.luggage_rounded,
           actionLabel: isAdmin ? 'Editar' : null,
           onAction: isAdmin && trip != null ? () => showTripForm(context, trip: trip) : null,
         ),
@@ -46,27 +43,29 @@ class TripSettingsScreen extends ConsumerWidget {
           const ShimmerBox(height: 130, borderRadius: Radii.brLg)
         else
           GlassCard(
+            padding: EdgeInsets.zero,
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                _Row(icon: Icons.tag_rounded, label: 'Nome', value: trip.name),
+                _Row(label: 'Nome', value: trip.name),
+                const Divider(),
                 _Row(
-                  icon: Icons.place_outlined,
                   label: 'Destino',
                   value: trip.destination.isEmpty ? '—' : trip.destination,
                 ),
+                const Divider(),
                 _Row(
-                  icon: Icons.date_range_rounded,
                   label: 'Datas',
+                  mono: true,
                   value: trip.hasDates
                       ? Fmt.dateRange(trip.startDate!, trip.endDate!)
                       : 'não definidas',
                 ),
+                const Divider(),
                 _Row(
-                  icon: Icons.savings_outlined,
                   label: 'Orçamento',
+                  mono: true,
                   value: trip.budgetCents == null ? '—' : Money.format(trip.budgetCents!),
-                  last: true,
                 ),
               ],
             ),
@@ -79,39 +78,47 @@ class TripSettingsScreen extends ConsumerWidget {
           subtitle: isAdmin
               ? 'Você é o administrador desta viagem'
               : 'Só o administrador adiciona ou remove gente',
-          icon: Icons.groups_rounded,
           trailing: isAdmin
-              ? FilledButton.tonalIcon(
+              ? OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(minimumSize: const Size(0, 36)),
                   onPressed: () => showAddMemberSheet(
                     context,
                     nextOrder: membersAsync.valueOrNull?.length ?? 0,
                   ),
-                  icon: const Icon(Icons.person_add_alt_1_rounded, size: 18),
+                  icon: const Icon(Icons.add, size: 18),
                   label: const Text('Adicionar'),
                 )
               : null,
         ),
         membersAsync.when(
-          loading: () => const ShimmerList(itemCount: 2, itemHeight: 72),
+          loading: () => const ShimmerList(itemCount: 2, itemHeight: 56),
           error: (e, _) => Text('Erro ao carregar: $e', style: context.text.bodySmall),
-          data: (members) => Column(
-            children: [
-              for (var i = 0; i < members.length; i++)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: Gap.sm),
-                  child: _MemberTile(
+          data: (members) => GlassCard(
+            padding: EdgeInsets.zero,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (var i = 0; i < members.length; i++) ...[
+                  if (i > 0) const Divider(),
+                  _MemberTile(
                     member: members[i],
                     isMe: members[i].id == uid,
                     canRemove: isAdmin && !members[i].isAdmin,
-                  ).animate().fadeIn(delay: (50 * i).ms, duration: Motion.fast),
-                ),
-            ],
+                  ),
+                ],
+              ],
+            ),
           ),
         ),
 
+        // ---------------- Aparência ----------------
+        Gap.vXl,
+        const SectionHeader(title: 'Aparência', subtitle: 'Vale só para este aparelho'),
+        const _ThemePicker(),
+
         // ---------------- Sua conta ----------------
         Gap.vXl,
-        const SectionHeader(title: 'Sua conta', icon: Icons.person_rounded),
+        const SectionHeader(title: 'Sua conta'),
         const _AccountCard(),
 
         // ---------------- Zona de risco ----------------
@@ -122,7 +129,7 @@ class TripSettingsScreen extends ConsumerWidget {
             children: [
               OutlinedButton.icon(
                 onPressed: () => context.go(Routes.trips),
-                icon: const Icon(Icons.swap_horiz_rounded, size: 18),
+                icon: const Icon(Icons.swap_horiz, size: 18),
                 label: const Text('Trocar de viagem'),
               ),
               Gap.vMd,
@@ -131,9 +138,9 @@ class TripSettingsScreen extends ConsumerWidget {
                   onPressed: () => _confirmDeleteTrip(context, ref, trip.name),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.danger,
-                    side: BorderSide(color: AppColors.danger.withValues(alpha: 0.5), width: 1.5),
+                    side: BorderSide(color: AppColors.danger.withValues(alpha: 0.4)),
                   ),
-                  icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                  icon: const Icon(Icons.delete_outline, size: 18),
                   label: const Text('Excluir viagem'),
                 )
               else if (uid != null)
@@ -141,9 +148,9 @@ class TripSettingsScreen extends ConsumerWidget {
                   onPressed: () => _confirmLeave(context, ref, uid),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.danger,
-                    side: BorderSide(color: AppColors.danger.withValues(alpha: 0.5), width: 1.5),
+                    side: BorderSide(color: AppColors.danger.withValues(alpha: 0.4)),
                   ),
-                  icon: const Icon(Icons.logout_rounded, size: 18),
+                  icon: const Icon(Icons.logout, size: 18),
                   label: const Text('Sair desta viagem'),
                 ),
             ],
@@ -249,25 +256,23 @@ class TripSettingsScreen extends ConsumerWidget {
 
 class _Row extends StatelessWidget {
   const _Row({
-    required this.icon,
     required this.label,
     required this.value,
-    this.last = false,
+    this.mono = false,
   });
 
-  final IconData icon;
   final String label;
   final String value;
-  final bool last;
+
+  /// Datas e valores vão em mono, como no resto do app.
+  final bool mono;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.only(bottom: last ? 0 : Gap.md),
+      padding: const EdgeInsets.symmetric(horizontal: Gap.lg, vertical: Gap.md),
       child: Row(
         children: [
-          Icon(icon, size: 17, color: context.colors.onSurfaceVariant),
-          Gap.hMd,
           Text(label, style: context.text.bodySmall),
           Gap.hMd,
           // `Expanded` e não `Spacer` + `Flexible`: com os dois flexíveis
@@ -277,7 +282,9 @@ class _Row extends StatelessWidget {
           Expanded(
             child: Text(
               value,
-              style: context.text.titleSmall,
+              style: mono
+                  ? AppTypography.mono(size: 13, color: context.colors.onSurface)
+                  : context.text.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
               textAlign: TextAlign.end,
               overflow: TextOverflow.ellipsis,
             ),
@@ -301,66 +308,60 @@ class _MemberTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return GlassCard(
-      padding: const EdgeInsets.symmetric(horizontal: Gap.lg, vertical: Gap.md),
+    return InkWell(
       onTap: isMe ? () => _editSelf(context, ref) : null,
-      child: Row(
-        children: [
-          MemberAvatar(member: member, size: 42),
-          Gap.hMd,
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // `Wrap`: com as duas tags na mesma linha o nome ficava com
-                // ~65px e virava "Lu…". Aqui elas descem quando não cabem.
-                Wrap(
-                  spacing: Gap.sm,
-                  runSpacing: Gap.xs,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    Text(
-                      member.name,
-                      style: context.text.titleSmall,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    if (member.isAdmin) _Tag(label: 'admin', color: AppColors.turquoise),
-                    if (isMe) _Tag(label: 'você', color: AppColors.coral),
-                  ],
-                ),
-                Text(
-                  member.email,
-                  style: context.text.bodySmall,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                if (member.pixKey != null && member.pixKey!.isNotEmpty)
-                  Row(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: Gap.lg, vertical: Gap.md),
+        child: Row(
+          children: [
+            MemberAvatar(member: member, size: 32),
+            Gap.hMd,
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // `Wrap`: com as duas tags na mesma linha o nome ficava com
+                  // ~65px e virava "Lu…". Aqui elas descem quando não cabem.
+                  Wrap(
+                    spacing: Gap.sm,
+                    runSpacing: Gap.xs,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
-                      const Icon(Icons.pix_rounded, size: 12, color: AppColors.palm),
-                      Gap.hXs,
-                      Flexible(
-                        child: Text(
-                          member.pixKey!,
-                          style: context.text.labelSmall?.copyWith(color: AppColors.palm),
-                          overflow: TextOverflow.ellipsis,
-                        ),
+                      Text(
+                        member.name,
+                        style: context.text.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
+                      if (member.isAdmin) const _Tag(label: 'admin'),
+                      if (isMe) const _Tag(label: 'você'),
                     ],
                   ),
-              ],
+                  Text(
+                    member.email,
+                    style: context.text.bodySmall,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (member.pixKey != null && member.pixKey!.isNotEmpty)
+                    Text(
+                      'PIX ${member.pixKey!}',
+                      style: AppTypography.mono(size: 12, color: context.colors.onSurfaceVariant),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                ],
+              ),
             ),
-          ),
-          if (isMe)
-            Icon(Icons.edit_outlined, size: 17, color: context.colors.onSurfaceVariant),
-          if (canRemove)
-            IconButton(
-              tooltip: 'Remover da viagem',
-              onPressed: () => _confirmRemove(context, ref),
-              icon: const Icon(Icons.person_remove_outlined, size: 18),
-            ),
-        ],
+            if (isMe)
+              Icon(Icons.edit_outlined, size: 16, color: context.colors.onSurfaceVariant),
+            if (canRemove)
+              IconButton(
+                tooltip: 'Remover da viagem',
+                onPressed: () => _confirmRemove(context, ref),
+                icon: const Icon(Icons.person_remove_outlined, size: 18),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -369,7 +370,7 @@ class _MemberTile extends ConsumerWidget {
       showAppSheet(
         context: context,
         title: 'Seu perfil na viagem',
-        subtitle: 'Como a turma te vê aqui',
+        subtitle: 'Nome e chave PIX nesta viagem',
         builder: (_) => _EditMemberSheet(member: member),
       );
 
@@ -404,7 +405,7 @@ class _MemberTile extends ConsumerWidget {
   }
 }
 
-/// Emoji, apelido e chave PIX — a chave aparece para quem vai te pagar.
+/// Nome e chave PIX — a chave aparece para quem vai te pagar.
 class _EditMemberSheet extends ConsumerStatefulWidget {
   const _EditMemberSheet({required this.member});
 
@@ -417,7 +418,6 @@ class _EditMemberSheet extends ConsumerStatefulWidget {
 class _EditMemberSheetState extends ConsumerState<_EditMemberSheet> {
   late final TextEditingController _nameController;
   late final TextEditingController _pixController;
-  late String _emoji;
   bool _saving = false;
 
   @override
@@ -425,7 +425,6 @@ class _EditMemberSheetState extends ConsumerState<_EditMemberSheet> {
     super.initState();
     _nameController = TextEditingController(text: widget.member.name);
     _pixController = TextEditingController(text: widget.member.pixKey ?? '');
-    _emoji = widget.member.emoji;
   }
 
   @override
@@ -440,7 +439,6 @@ class _EditMemberSheetState extends ConsumerState<_EditMemberSheet> {
     try {
       final member = widget.member.copyWith(
         name: _nameController.text.trim(),
-        emoji: _emoji,
         pixKey: _pixController.text.trim(),
       );
       await ref
@@ -449,7 +447,6 @@ class _EditMemberSheetState extends ConsumerState<_EditMemberSheet> {
       await ref.read(userRepositoryProvider).updateProfile(
             member.id,
             displayName: member.name,
-            emoji: _emoji,
           );
       if (mounted) {
         Navigator.of(context).pop();
@@ -492,37 +489,6 @@ class _EditMemberSheetState extends ConsumerState<_EditMemberSheet> {
                     prefixIcon: Icon(Icons.pix_rounded, size: 20),
                   ),
                 ),
-                Gap.vXl,
-                Text('Seu emoji', style: context.text.labelLarge),
-                Gap.vSm,
-                Wrap(
-                  spacing: Gap.sm,
-                  runSpacing: Gap.sm,
-                  children: [
-                    for (final emoji in Member.emojiOptions)
-                      InkWell(
-                        borderRadius: Radii.brMd,
-                        onTap: () => setState(() => _emoji = emoji),
-                        child: AnimatedContainer(
-                          duration: Motion.fast,
-                          width: 46,
-                          height: 46,
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            color: _emoji == emoji
-                                ? AppColors.coral.withValues(alpha: 0.16)
-                                : context.colors.surfaceContainerHigh,
-                            borderRadius: Radii.brMd,
-                            border: Border.all(
-                              color: _emoji == emoji ? AppColors.coral : Colors.transparent,
-                              width: 1.6,
-                            ),
-                          ),
-                          child: Text(emoji, style: const TextStyle(fontSize: 22)),
-                        ),
-                      ),
-                  ],
-                ),
               ],
             ),
           ),
@@ -550,23 +516,17 @@ class _AccountCard extends ConsumerWidget {
       onTap: () => context.push(Routes.account),
       child: Row(
         children: [
-          Container(
-            width: 46,
-            height: 46,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: AppColors.turquoise.withValues(alpha: 0.14),
-              shape: BoxShape.circle,
-            ),
-            child: Text(user?.emoji ?? '🙂', style: const TextStyle(fontSize: 22)),
-          ),
+          InitialsAvatar(initials: user?.initials ?? '?', size: 32),
           Gap.hMd,
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(user?.displayName ?? '—', style: context.text.titleSmall),
+                Text(
+                  user?.displayName ?? '—',
+                  style: context.text.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
+                ),
                 Text(
                   user?.email ?? '',
                   style: context.text.bodySmall,
@@ -582,9 +542,9 @@ class _AccountCard extends ConsumerWidget {
           IconButton(
             tooltip: 'Sair da conta',
             onPressed: () => ref.read(authServiceProvider).signOut(),
-            icon: const Icon(Icons.logout_rounded, size: 18),
+            icon: const Icon(Icons.logout, size: 18),
           ),
-          Icon(Icons.chevron_right_rounded, color: AppColors.inkFaint),
+          Icon(Icons.chevron_right, color: context.colors.onSurfaceVariant),
         ],
       ),
     );
@@ -592,23 +552,53 @@ class _AccountCard extends ConsumerWidget {
 }
 
 class _Tag extends StatelessWidget {
-  const _Tag({required this.label, required this.color});
+  const _Tag({required this.label});
 
   final String label;
-  final Color color;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.16),
-        borderRadius: Radii.brPill,
+        borderRadius: Radii.brSm,
+        border: Border.all(color: context.colors.outline),
       ),
-      child: Text(
-        label,
-        style: context.text.labelSmall?.copyWith(color: color, fontWeight: FontWeight.w700),
-      ),
+      child: Text(label, style: context.text.labelSmall?.copyWith(fontSize: 11)),
+    );
+  }
+}
+
+/// Sistema, claro ou escuro. O botão sol/lua da barra só alterna entre os
+/// dois últimos; voltar a seguir o sistema é por aqui.
+class _ThemePicker extends ConsumerWidget {
+  const _ThemePicker();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final mode = ref.watch(themeModeProvider);
+
+    return SegmentedButton<ThemeMode>(
+      showSelectedIcon: false,
+      segments: const [
+        ButtonSegment(
+          value: ThemeMode.system,
+          label: Text('Sistema'),
+          icon: Icon(Icons.brightness_auto_outlined, size: 16),
+        ),
+        ButtonSegment(
+          value: ThemeMode.light,
+          label: Text('Claro'),
+          icon: Icon(Icons.light_mode_outlined, size: 16),
+        ),
+        ButtonSegment(
+          value: ThemeMode.dark,
+          label: Text('Escuro'),
+          icon: Icon(Icons.dark_mode_outlined, size: 16),
+        ),
+      ],
+      selected: {mode},
+      onSelectionChanged: (s) => ref.read(themeModeProvider.notifier).set(s.first),
     );
   }
 }

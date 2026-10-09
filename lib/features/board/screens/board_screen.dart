@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/theme/app_colors.dart';
 import '../../../shared/widgets/feedback/empty_state.dart';
 import '../../../shared/widgets/layout/app_page.dart';
 
@@ -11,17 +10,14 @@ class BoardScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return AppPage(
+    return const AppPage(
       title: 'Mural',
-      emoji: '📸',
-      subtitle: 'O álbum compartilhado da turma',
-      children: const [
+      children: [
         SizedBox(height: 40),
         EmptyState(
-          icon: Icons.photo_library_rounded,
+          icon: Icons.photo_outlined,
           title: 'Em breve',
-          message: 'Aqui vão ficar as fotos e vídeos enviados pelo grupo.',
-          accent: AppColors.grape,
+          message: 'Aqui vão ficar as fotos e os vídeos da viagem.',
         ),
       ],
     );

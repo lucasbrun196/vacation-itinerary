@@ -23,7 +23,7 @@ class ShimmerBox extends StatelessWidget {
     return Shimmer.fromColors(
       baseColor: context.colors.surfaceContainerHigh,
       highlightColor: context.colors.surfaceContainerLow,
-      period: const Duration(milliseconds: 1400),
+      period: const Duration(milliseconds: 1600),
       child: Container(
         width: width,
         height: height,

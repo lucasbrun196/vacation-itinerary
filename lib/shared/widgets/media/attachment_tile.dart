@@ -59,7 +59,7 @@ class AttachmentThumb extends StatelessWidget {
                         attachment.isPdf
                             ? Icons.picture_as_pdf_rounded
                             : Icons.insert_drive_file_rounded,
-                        color: AppColors.coral,
+                        color: context.colors.primary,
                         size: 24,
                       ),
                       Gap.vXs,

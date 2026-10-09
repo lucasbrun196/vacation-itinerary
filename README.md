@@ -1,4 +1,4 @@
-# Viagem 🏝️
+# WeGoTravel
 
 Aplicativo de viagem compartilhada: roteiro, gastos, comprovantes e mural de
 fotos em um só lugar. Flutter para Web (Vercel) e Android/iOS a partir da

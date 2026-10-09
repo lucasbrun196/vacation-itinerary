@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -11,15 +10,16 @@ import '../../../core/theme/app_typography.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/utils/money.dart';
 import '../../../data/models/bill.dart';
+import '../../../data/models/bill_share.dart';
 import '../../../shared/widgets/cards/glass_card.dart';
-import '../../../shared/widgets/cards/stat_card.dart';
-import '../../../shared/widgets/domain/member_avatar.dart';
-import '../../../shared/widgets/feedback/animated_progress_bar.dart';
+import '../../../shared/widgets/effects/grid_backdrop.dart';
+import '../../../shared/widgets/feedback/animated_counter.dart';
+import '../../../shared/widgets/effects/fade_slide_in.dart';
 import '../../../shared/widgets/feedback/empty_state.dart';
 import '../../../shared/widgets/feedback/loading_shimmer.dart';
+import '../../../shared/widgets/inputs/add_button.dart';
 import '../../../shared/widgets/layout/app_page.dart';
-import '../../../shared/widgets/layout/section_header.dart';
-import '../../../shared/widgets/layout/stat_grid.dart';
+import '../../../shared/widgets/layout/stat_strip.dart';
 import '../controllers/money_controllers.dart';
 import '../widgets/bill_card.dart';
 import '../widgets/bill_form_sheet.dart';
@@ -29,286 +29,206 @@ class ExpensesScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final billsAsync = ref.watch(billsProvider);
     final overview = ref.watch(moneyOverviewProvider);
     final currentMember = ref.watch(currentMemberProvider);
 
     return AppPage(
-      title: 'Gastos',
-      emoji: '💸',
-      subtitle: 'As contas da viagem, divididas entre a turma',
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => showBillForm(context),
-        icon: const Icon(Icons.add_rounded),
-        label: const Text('Nova conta'),
-      ),
+      title: 'Contas',
+      action: AddButton(label: 'Nova conta', onPressed: () => showBillForm(context)),
       children: [
-        StatGrid(
-          children: [
-            StatCard(
-              label: 'Total das contas',
-              value: overview.totalCents.toReais,
-              icon: Icons.receipt_long_rounded,
-              accent: AppColors.coral,
+        if (currentMember != null) ...[
+          const _YouOweCard(),
+          Gap.vMd,
+        ],
+        StatStrip(
+          minCellWidth: 100,
+          valueSize: 16,
+          cells: [
+            StatCell.money(
+              label: 'Total',
+              color: AppColors.sky,
+              cents: overview.totalCents,
               footnote: '${overview.billCount} ${overview.billCount == 1 ? "conta" : "contas"}',
             ),
-            StatCard(
-              label: 'Já quitado',
-              value: overview.paidCents.toReais,
-              icon: Icons.check_circle_rounded,
-              accent: AppColors.success,
+            StatCell.money(
+              label: 'Pago',
+              color: AppColors.success,
+              cents: overview.paidCents,
               footnote: Fmt.percent(overview.progress),
             ),
-            StatCard(
-              label: 'Falta pagar',
-              value: overview.pendingCents.toReais,
-              icon: Icons.pending_actions_rounded,
-              accent: AppColors.sunset,
+            StatCell.money(
+              label: 'Falta',
+              color: AppColors.sunset,
+              cents: overview.pendingCents,
               footnote: '${overview.openBillCount} em aberto',
             ),
           ],
         ),
-
-        if (overview.totalCents > 0) ...[
-          Gap.vMd,
-          _OverallProgress(overview: overview),
-        ],
-
-        if (currentMember != null) ...[
-          Gap.vXl,
-          const _MyMoney(),
-        ],
-
         Gap.vXl,
-        SectionHeader(
-          title: 'Contas',
-          icon: Icons.folder_rounded,
-          trailing: billsAsync.valueOrNull == null
-              ? null
-              : Text('${billsAsync.value!.length}', style: context.text.labelMedium),
-        ),
-        billsAsync.when(
-          loading: () => const ShimmerList(itemCount: 3, itemHeight: 128),
-          error: (e, _) => ErrorView(message: 'Não deu para carregar as contas', details: '$e'),
-          data: (bills) => bills.isEmpty
-              ? const Padding(
-                  padding: EdgeInsets.only(top: Gap.xl),
-                  child: EmptyState(
-                    icon: Icons.account_balance_wallet_rounded,
-                    title: 'Nenhuma conta ainda',
-                    message: 'Cadastre o aluguel, a gasolina, os rolês — '
-                        'e o app divide entre a turma.',
-                    accent: AppColors.sunset,
-                  ),
-                )
-              : Column(
-                  children: [
-                    for (var i = 0; i < bills.length; i++)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: Gap.md),
-                        child: BillCard(
-                          bill: bills[i],
-                          onTap: () => context.go(
-                            '/viagem/${ref.read(currentTripIdProvider)}/gastos/${bills[i].id}',
-                          ),
-                        )
-                            .animate()
-                            .fadeIn(delay: (60 * i).ms, duration: Motion.normal)
-                            .slideY(begin: 0.08, curve: Motion.enter),
-                      ),
-                  ],
-                ),
-        ),
+        const _BillList(),
       ],
     );
   }
 }
 
-/// Progresso geral do pagamento da viagem.
-class _OverallProgress extends StatelessWidget {
-  const _OverallProgress({required this.overview});
-
-  final MoneyOverview overview;
-
-  @override
-  Widget build(BuildContext context) {
-    return GlassCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(child: Text('Quanto já foi acertado', style: context.text.titleMedium)),
-              Text(
-                Fmt.percent(overview.progress),
-                style: AppTypography.money(
-                  size: 18,
-                  color: AnimatedProgressBar.colorFor(overview.progress),
-                ),
-              ),
-            ],
-          ),
-          Gap.vMd,
-          AnimatedProgressBar(value: overview.progress, height: 12),
-          Gap.vSm,
-          Row(
-            children: [
-              Text(Money.format(overview.paidCents), style: context.text.bodySmall),
-              const Spacer(),
-              Text('de ${Money.format(overview.totalCents)}', style: context.text.bodySmall),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// O resumo pessoal: o que você deve e o que têm a te pagar.
-class _MyMoney extends ConsumerWidget {
-  const _MyMoney();
+/// O número que importa para quem abriu a tela, em destaque verde suave.
+class _YouOweCard extends ConsumerWidget {
+  const _YouOweCard();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final member = ref.watch(currentMemberProvider)!;
     final pending = ref.watch(myPendingSharesProvider);
     final owedToMe = ref.watch(owedToMeProvider);
     final iOwe = pending.fold<int>(0, (sum, s) => sum + s.remainingCents);
-    final membersById = ref.watch(membersByIdProvider);
     final bills = {
-      for (final b in ref.watch(billsProvider).valueOrNull ?? const <Bill>[]) b.id: b
+      for (final b in ref.watch(billsProvider).valueOrNull ?? const <Bill>[]) b.id: b,
     };
+    final next = pending.isEmpty ? null : pending.first;
+    final accent = context.colors.primary;
 
-    if (iOwe == 0 && owedToMe == 0) return const SizedBox.shrink();
+    final nextLine = next == null
+        ? 'Nada pendente'
+        : [
+            'Próxima: ${bills[next.billId]?.title ?? "conta"}',
+            if (next.installmentNumber != null &&
+                (bills[next.billId]?.isInstallment ?? false))
+              'parcela ${next.installmentNumber}/${bills[next.billId]!.installmentCount}',
+            if (next.dueDate != null) 'vence ${Fmt.dateShort(next.dueDate!)}',
+            Money.format(next.remainingCents),
+          ].join(' · ');
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        SectionHeader(
-          title: 'Você, ${member.shortName}',
-          icon: Icons.person_rounded,
-        ),
-        Row(
-          children: [
-            if (iOwe > 0)
-              Expanded(
-                child: _MyMoneyTile(
-                  label: 'Você deve',
-                  cents: iOwe,
-                  color: AppColors.coral,
-                  icon: Icons.arrow_upward_rounded,
-                ),
-              ),
-            if (iOwe > 0 && owedToMe > 0) Gap.hMd,
-            if (owedToMe > 0)
-              Expanded(
-                child: _MyMoneyTile(
-                  label: 'Devem a você',
-                  cents: owedToMe,
-                  color: AppColors.success,
-                  icon: Icons.arrow_downward_rounded,
-                ),
-              ),
-          ],
-        ),
-        if (pending.isNotEmpty) ...[
-          Gap.vMd,
-          GlassCard(
-            padding: const EdgeInsets.symmetric(vertical: Gap.md),
-            child: Column(
-              children: [
-                for (final share in pending.take(3))
-                  ListTile(
-                    dense: true,
-                    leading: MemberAvatar(
-                      member: membersById[share.creditorId ?? bills[share.billId]?.paidByMemberId] ??
-                          member,
-                      size: 34,
-                    ),
-                    title: Text(
-                      bills[share.billId]?.title ?? 'Conta',
-                      style: context.text.titleSmall,
-                    ),
-                    subtitle: Text(
-                      [
-                        if (membersById[share.creditorId] case final to?) 'para ${to.shortName}',
-                        if (share.installmentNumber != null) 'parcela ${share.installmentNumber}',
-                        if (share.dueDate != null) 'vence ${Fmt.dateShort(share.dueDate!)}',
-                      ].join(' · '),
-                      style: context.text.bodySmall?.copyWith(
-                        color: share.isOverdue ? AppColors.danger : null,
-                      ),
-                    ),
-                    trailing: Text(
-                      Money.format(share.remainingCents),
-                      style: AppTypography.money(size: 15, color: context.colors.onSurface),
-                    ),
-                  ),
-                if (pending.length > 3)
-                  Padding(
-                    padding: const EdgeInsets.only(top: Gap.xs),
-                    child: Text(
-                      '+ ${pending.length - 3} pendentes',
-                      style: context.text.labelSmall,
-                    ),
-                  ),
-              ],
+    return GridBackdrop(
+      padding: const EdgeInsets.all(Gap.xl),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Você deve', style: context.text.labelSmall?.copyWith(color: accent)),
+          Gap.vXs,
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: AnimatedMoney(iOwe / 100, style: AppTypography.money(size: 34, color: accent)),
+          ),
+          Gap.vXs,
+          Text(
+            nextLine,
+            style: context.text.bodySmall?.copyWith(
+              color: next?.isOverdue ?? false ? AppColors.danger : accent,
             ),
           ),
+          if (owedToMe > 0)
+            Text(
+              'A receber: ${Money.format(owedToMe)}',
+              style: context.text.bodySmall?.copyWith(color: accent),
+            ),
         ],
-      ],
+      ),
     );
   }
 }
 
-class _MyMoneyTile extends StatelessWidget {
-  const _MyMoneyTile({
-    required this.label,
-    required this.cents,
-    required this.color,
-    required this.icon,
-  });
+enum _Filter {
+  open('Em aberto'),
+  settled('Quitadas'),
+  all('Todas');
 
+  const _Filter(this.label);
   final String label;
-  final int cents;
-  final Color color;
-  final IconData icon;
+}
+
+/// Os filtros e a lista de contas num cartão só.
+class _BillList extends ConsumerStatefulWidget {
+  const _BillList();
+
+  @override
+  ConsumerState<_BillList> createState() => _BillListState();
+}
+
+class _BillListState extends ConsumerState<_BillList> {
+  _Filter _filter = _Filter.open;
 
   @override
   Widget build(BuildContext context) {
-    return GlassCard(
-      accent: color,
-      padding: const EdgeInsets.all(Gap.md),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(Gap.sm),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.14),
-              shape: BoxShape.circle,
+    final billsAsync = ref.watch(billsProvider);
+    final byBill = ref.watch(sharesByBillProvider);
+
+    bool settled(Bill b) => BillSummary.from(b, byBill[b.id] ?? const <BillShare>[]).isSettled;
+
+    return billsAsync.when(
+      loading: () => const ShimmerList(itemCount: 3, itemHeight: 56),
+      error: (e, _) => ErrorView(message: 'Não deu para carregar as contas', details: '$e'),
+      data: (bills) {
+        if (bills.isEmpty) {
+          return Padding(
+            padding: const EdgeInsets.only(top: Gap.lg),
+            child: EmptyState(
+              icon: Icons.receipt_long_outlined,
+              title: 'Nenhuma conta ainda',
+              message: 'Cadastre o aluguel, a gasolina e os passeios. O app divide entre todos.',
+              actionLabel: 'Nova conta',
+              onAction: () => showBillForm(context),
             ),
-            child: Icon(icon, size: 16, color: color),
-          ),
-          Gap.hMd,
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
+          );
+        }
+
+        final counts = {
+          _Filter.open: bills.where((b) => !settled(b)).length,
+          _Filter.settled: bills.where(settled).length,
+          _Filter.all: bills.length,
+        };
+        final shown = switch (_filter) {
+          _Filter.open => bills.where((b) => !settled(b)).toList(),
+          _Filter.settled => bills.where(settled).toList(),
+          _Filter.all => bills,
+        };
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Wrap(
+              spacing: Gap.sm,
+              runSpacing: Gap.sm,
               children: [
-                Text(label, style: context.text.labelSmall),
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    Money.format(cents),
-                    style: AppTypography.money(size: 19, color: color),
+                for (final f in _Filter.values)
+                  ChoiceChip(
+                    label: Text('${f.label} ${counts[f]}'),
+                    selected: _filter == f,
+                    onSelected: (_) => setState(() => _filter = f),
                   ),
-                ),
               ],
             ),
-          ),
-        ],
-      ),
+            Gap.vMd,
+            if (shown.isEmpty)
+              GlassCard(
+                child: Text(
+                  _filter == _Filter.open ? 'Nenhuma conta em aberto.' : 'Nenhuma conta quitada.',
+                  style: context.text.bodySmall,
+                ),
+              )
+            else
+              GlassCard(
+                padding: EdgeInsets.zero,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (final (i, bill) in shown.indexed) ...[
+                      if (i > 0) const Divider(),
+                      FadeSlideIn(
+                        index: i,
+                        child: BillRow(
+                          bill: bill,
+                          onTap: () => context.go(
+                            '/viagem/${ref.read(currentTripIdProvider)}/gastos/${bill.id}',
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
 }

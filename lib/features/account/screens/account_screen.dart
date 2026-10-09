@@ -8,10 +8,10 @@ import '../../../core/extensions/context_ext.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../data/models/app_user.dart';
-import '../../../data/models/member.dart';
 import '../../../data/models/trip.dart';
 import '../../../data/services/auth_service.dart';
 import '../../../shared/widgets/cards/glass_card.dart';
+import '../../../shared/widgets/domain/member_avatar.dart';
 import '../../../shared/widgets/feedback/error_banner.dart';
 import '../../../shared/widgets/feedback/loading_shimmer.dart';
 import '../../../shared/widgets/layout/app_page.dart';
@@ -31,21 +31,17 @@ class AccountScreen extends ConsumerWidget {
 
     return AppPage(
       title: 'Sua conta',
-      emoji: '👤',
-      subtitle: 'Perfil, senha e cadastro',
       backgroundColor: context.theme.scaffoldBackgroundColor,
       leading: IconButton(
         onPressed: () =>
             context.canPop() ? context.pop() : context.go(Routes.trips),
-        icon: const Icon(Icons.arrow_back_rounded),
+        icon: const Icon(Icons.arrow_back),
         tooltip: 'Voltar',
       ),
       children: [
         // ---------------- Perfil ----------------
         SectionHeader(
           title: 'Perfil',
-          icon: Icons.badge_outlined,
-          subtitle: 'Como a turma te vê nas viagens',
           actionLabel: user == null ? null : 'Editar',
           onAction: user == null ? null : () => _editProfile(context, user),
         ),
@@ -55,19 +51,7 @@ class AccountScreen extends ConsumerWidget {
           GlassCard(
             child: Row(
               children: [
-                Container(
-                  width: 54,
-                  height: 54,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: AppColors.turquoise.withValues(alpha: 0.14),
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: AppColors.turquoise.withValues(alpha: 0.4),
-                    ),
-                  ),
-                  child: Text(user.emoji, style: const TextStyle(fontSize: 26)),
-                ),
+                InitialsAvatar(initials: user.initials, size: 40),
                 Gap.hLg,
                 Expanded(
                   child: Column(
@@ -81,17 +65,13 @@ class AccountScreen extends ConsumerWidget {
                         style: context.text.titleMedium,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      Gap.vXs,
                       Text(
                         user.email,
                         style: context.text.bodySmall,
                         overflow: TextOverflow.ellipsis,
                       ),
                       Gap.vXs,
-                      Text(
-                        'O e-mail é o seu login e não muda por aqui',
-                        style: context.text.labelSmall,
-                      ),
+                      Text('O e-mail é o login e não muda aqui.', style: context.text.labelSmall),
                     ],
                   ),
                 ),
@@ -101,7 +81,7 @@ class AccountScreen extends ConsumerWidget {
 
         // ---------------- Segurança ----------------
         Gap.vXl,
-        const SectionHeader(title: 'Segurança', icon: Icons.lock_outline_rounded),
+        const SectionHeader(title: 'Segurança'),
         GlassCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -113,14 +93,14 @@ class AccountScreen extends ConsumerWidget {
                   subtitle: 'Confirme a senha atual para mudar',
                   builder: (_) => const _PasswordSheet(),
                 ),
-                icon: const Icon(Icons.password_rounded, size: 18),
+                icon: const Icon(Icons.password, size: 18),
                 label: const Text('Trocar senha'),
               ),
               if (user != null) ...[
                 Gap.vSm,
                 TextButton(
                   onPressed: () => _sendResetLink(context, ref, user.email),
-                  child: const Text('Prefere por e-mail? Enviar link de redefinição'),
+                  child: const Text('Receber link de redefinição por e-mail'),
                 ),
               ],
             ],
@@ -129,14 +109,14 @@ class AccountScreen extends ConsumerWidget {
 
         // ---------------- Sessão ----------------
         Gap.vXl,
-        const SectionHeader(title: 'Sessão', icon: Icons.devices_rounded),
+        const SectionHeader(title: 'Sessão'),
         GlassCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               OutlinedButton.icon(
                 onPressed: () => ref.read(authServiceProvider).signOut(),
-                icon: const Icon(Icons.logout_rounded, size: 18),
+                icon: const Icon(Icons.logout, size: 18),
                 label: const Text('Sair da conta'),
               ),
             ],
@@ -165,8 +145,7 @@ class AccountScreen extends ConsumerWidget {
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppColors.danger,
                   side: BorderSide(
-                    color: AppColors.danger.withValues(alpha: 0.5),
-                    width: 1.5,
+                    color: AppColors.danger.withValues(alpha: 0.4),
                   ),
                 ),
                 icon: const Icon(Icons.person_remove_outlined, size: 18),
@@ -205,7 +184,7 @@ class AccountScreen extends ConsumerWidget {
   }
 }
 
-/// Nome e emoji do perfil, propagados para todas as viagens.
+/// Nome do perfil, propagado para todas as viagens.
 class _ProfileSheet extends ConsumerStatefulWidget {
   const _ProfileSheet({required this.user});
 
@@ -218,7 +197,6 @@ class _ProfileSheet extends ConsumerStatefulWidget {
 class _ProfileSheetState extends ConsumerState<_ProfileSheet> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _nameController;
-  late String _emoji;
   bool _saving = false;
   String? _error;
 
@@ -226,7 +204,6 @@ class _ProfileSheetState extends ConsumerState<_ProfileSheet> {
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.user.displayName);
-    _emoji = widget.user.emoji;
   }
 
   @override
@@ -248,7 +225,7 @@ class _ProfileSheetState extends ConsumerState<_ProfileSheet> {
       final uid = widget.user.uid;
       await ref
           .read(userRepositoryProvider)
-          .updateProfile(uid, displayName: name, emoji: _emoji);
+          .updateProfile(uid, displayName: name);
 
       // O Auth também guarda o nome, e é dele que `syncFromAuth` parte
       // no próximo login: sem isto o nome antigo voltaria sozinho.
@@ -256,7 +233,7 @@ class _ProfileSheetState extends ConsumerState<_ProfileSheet> {
 
       await ref
           .read(tripRepositoryProvider)
-          .syncMemberProfile(uid: uid, name: name, emoji: _emoji);
+          .syncMemberProfile(uid: uid, name: name, emoji: widget.user.emoji);
 
       if (mounted) {
         Navigator.of(context).pop();
@@ -290,18 +267,11 @@ class _ProfileSheetState extends ConsumerState<_ProfileSheet> {
                     textCapitalization: TextCapitalization.words,
                     decoration: const InputDecoration(
                       labelText: 'Seu nome',
-                      hintText: 'Como a turma te chama',
+                      hintText: 'Nome e sobrenome',
                       prefixIcon: Icon(Icons.person_outline_rounded, size: 20),
                     ),
                     validator: (v) =>
                         (v == null || v.trim().length < 2) ? 'Diga seu nome' : null,
-                  ),
-                  Gap.vXl,
-                  Text('Seu emoji', style: context.text.labelLarge),
-                  Gap.vSm,
-                  _EmojiPicker(
-                    selected: _emoji,
-                    onSelected: (emoji) => setState(() => _emoji = emoji),
                   ),
                   if (_error != null) ...[
                     Gap.vLg,
@@ -319,46 +289,6 @@ class _ProfileSheetState extends ConsumerState<_ProfileSheet> {
           onSecondary: () => Navigator.of(context).pop(),
           isLoading: _saving,
         ),
-      ],
-    );
-  }
-}
-
-/// Grade de emojis do app, com o escolhido em destaque.
-class _EmojiPicker extends StatelessWidget {
-  const _EmojiPicker({required this.selected, required this.onSelected});
-
-  final String selected;
-  final ValueChanged<String> onSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    return Wrap(
-      spacing: Gap.sm,
-      runSpacing: Gap.sm,
-      children: [
-        for (final emoji in Member.emojiOptions)
-          InkWell(
-            borderRadius: Radii.brMd,
-            onTap: () => onSelected(emoji),
-            child: AnimatedContainer(
-              duration: Motion.fast,
-              width: 46,
-              height: 46,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: selected == emoji
-                    ? AppColors.coral.withValues(alpha: 0.16)
-                    : context.colors.surfaceContainerHigh,
-                borderRadius: Radii.brMd,
-                border: Border.all(
-                  color: selected == emoji ? AppColors.coral : Colors.transparent,
-                  width: 1.6,
-                ),
-              ),
-              child: Text(emoji, style: const TextStyle(fontSize: 22)),
-            ),
-          ),
       ],
     );
   }

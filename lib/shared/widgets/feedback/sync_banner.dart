@@ -51,10 +51,10 @@ class _Bar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final offline = status == SyncStatus.offline;
-    final color = offline ? AppColors.warning : AppColors.sky;
+    final color = offline ? AppColors.warning : context.colors.onSurfaceVariant;
 
     return Material(
-      color: color.withValues(alpha: 0.14),
+      color: color.withValues(alpha: 0.08),
       child: SafeArea(
         bottom: false,
         child: Padding(
@@ -75,7 +75,7 @@ class _Bar extends StatelessWidget {
                   offline
                       ? 'Sem conexão — mostrando o que já estava salvo'
                       : 'Enviando as alterações…',
-                  style: context.text.labelMedium?.copyWith(color: AppColors.ink),
+                  style: context.text.labelMedium?.copyWith(color: context.colors.onSurface),
                   maxLines: 2,
                 ),
               ),

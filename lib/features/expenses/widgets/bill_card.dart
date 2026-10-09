@@ -1,192 +1,116 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../app/providers.dart';
 import '../../../core/extensions/context_ext.dart';
-import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/theme/app_typography.dart';
+import '../../../core/utils/formatters.dart';
 import '../../../core/utils/money.dart';
 import '../../../data/models/bill.dart';
+import '../../../data/models/bill_share.dart';
 import '../../../data/models/enums.dart';
-import '../../../shared/widgets/cards/glass_card.dart';
-import '../../../shared/widgets/feedback/animated_progress_bar.dart';
-import '../../../shared/widgets/domain/member_avatar.dart';
+import '../../../shared/widgets/domain/category_badge.dart';
 import '../controllers/money_controllers.dart';
 
-class BillCard extends ConsumerWidget {
-  const BillCard({super.key, required this.bill, this.onTap});
+/// Uma conta como linha da lista: nome, "Categoria · parcela 2/6 · vence
+/// 12/10" embaixo e o valor em mono à direita.
+///
+/// Vive dentro de um cartão único, separada das vizinhas por divisórias —
+/// quem desenha o cartão e as divisórias é a lista.
+class BillRow extends ConsumerWidget {
+  const BillRow({super.key, required this.bill, this.onTap});
 
   final Bill bill;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final summary = ref.watch(billSummaryProvider(bill));
-    final owner = bill.paidByMemberId == null
-        ? null
-        : ref.watch(membersByIdProvider)[bill.paidByMemberId];
-    final accent = bill.category.color;
+    final shares = ref.watch(sharesByBillProvider)[bill.id] ?? const <BillShare>[];
+    final summary = BillSummary.from(bill, shares);
+    final muted = context.colors.onSurfaceVariant;
 
-    return GlassCard(
+    return InkWell(
       onTap: onTap,
-      accent: accent,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 46,
-                height: 46,
-                decoration: BoxDecoration(
-                  color: accent.withValues(alpha: 0.14),
-                  borderRadius: Radii.brMd,
-                ),
-                child: Icon(bill.category.icon, color: accent, size: 22),
-              ),
-              Gap.hMd,
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      bill.title,
-                      style: context.text.titleMedium,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    Gap.vXs,
-                    Wrap(
-                      spacing: Gap.xs,
-                      runSpacing: Gap.xs,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        _Tag(label: bill.category.label, color: accent),
-                        if (bill.isAccumulating)
-                          _Tag(
-                            label: bill.status == BillStatus.settled
-                                ? 'fechada'
-                                : '${bill.entriesCount} ${bill.entriesCount == 1 ? "lançamento" : "lançamentos"}',
-                            color: AppColors.sky,
-                            icon: Icons.add_chart_rounded,
-                          )
-                        else if (bill.isInstallment)
-                          _Tag(
-                            label: '${bill.installmentCount}x de ${Money.format(bill.perPersonPerInstallmentCents)}',
-                            color: AppColors.grape,
-                            icon: Icons.calendar_month_rounded,
-                          ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              Gap.hSm,
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: Gap.lg, vertical: Gap.md),
+        child: Row(
+          children: [
+            CategoryBadge(icon: bill.category.icon, color: bill.category.color),
+            Gap.hMd,
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    Money.format(summary.totalCents),
-                    style: AppTypography.money(size: 18, color: context.colors.onSurface),
+                    bill.title,
+                    style: context.text.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  if (owner != null) ...[
-                    Gap.vXs,
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        MemberAvatar(member: owner, size: 20, showBorder: false),
-                        Gap.hXs,
-                        Text('bancou', style: context.text.labelSmall),
-                      ],
-                    ),
-                  ],
+                  Text(
+                    _details(bill, shares),
+                    style: context.text.bodySmall,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ],
               ),
-            ],
-          ),
-          if (summary.shareCount > 0) ...[
-            Gap.vLg,
-            AnimatedProgressBar(value: summary.progress, height: 8),
-            Gap.vSm,
-            Row(
+            ),
+            Gap.hMd,
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Icon(
-                  summary.isSettled ? Icons.check_circle_rounded : Icons.schedule_rounded,
-                  size: 13,
-                  color: summary.isSettled ? AppColors.success : context.colors.onSurfaceVariant,
-                ),
-                Gap.hXs,
                 Text(
-                  summary.isSettled
-                      ? 'Tudo quitado'
-                      : 'Falta ${Money.format(summary.pendingCents)}',
-                  style: context.text.bodySmall?.copyWith(
-                    color: summary.isSettled ? AppColors.success : null,
-                    fontWeight: summary.isSettled ? FontWeight.w600 : null,
+                  Money.format(summary.totalCents),
+                  style: AppTypography.money(size: 14, color: context.colors.onSurface),
+                ),
+                if (summary.isSettled)
+                  Text(
+                    'quitada',
+                    style: context.text.labelSmall?.copyWith(color: context.success),
+                  )
+                else if (summary.shareCount > 0 && summary.paidCents > 0)
+                  Text(
+                    'falta ${Money.format(summary.pendingCents)}',
+                    style: AppTypography.mono(size: 11, color: muted),
                   ),
-                ),
-                const Spacer(),
-                Text(
-                  '${summary.paidCount}/${summary.shareCount} cotas',
-                  style: context.text.labelSmall,
-                ),
               ],
             ),
-          ] else if (bill.isAccumulating) ...[
-            Gap.vMd,
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: Gap.md, vertical: Gap.sm),
-              decoration: BoxDecoration(
-                color: AppColors.sky.withValues(alpha: 0.10),
-                borderRadius: Radii.brSm,
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.trending_up_rounded, size: 15, color: AppColors.sky),
-                  Gap.hSm,
-                  Expanded(
-                    child: Text(
-                      'Ainda somando — divide no fechamento',
-                      style: context.text.labelSmall?.copyWith(color: AppColors.sky),
-                    ),
-                  ),
-                ],
-              ),
-            ),
           ],
-        ],
+        ),
       ),
     );
   }
-}
 
-class _Tag extends StatelessWidget {
-  const _Tag({required this.label, required this.color, this.icon});
+  /// "Hospedagem · parcela 2/6 · vence 12/10"
+  static String _details(Bill bill, List<BillShare> shares) {
+    if (bill.isAccumulating && shares.isEmpty) {
+      return [
+        bill.category.label,
+        bill.status == BillStatus.settled
+            ? 'fechada'
+            : '${bill.entriesCount} ${bill.entriesCount == 1 ? "lançamento" : "lançamentos"}',
+      ].join(' · ');
+    }
 
-  final String label;
-  final Color color;
-  final IconData? icon;
+    // A próxima cota que alguém ainda tem a pagar diz em que pé a conta está.
+    final open = shares.where((s) => !s.isPaid && !s.isOwnerShare).toList()
+      ..sort((a, b) {
+        final ad = a.dueDate, bd = b.dueDate;
+        if (ad == null && bd == null) return 0;
+        if (ad == null) return 1;
+        if (bd == null) return -1;
+        return ad.compareTo(bd);
+      });
+    final next = open.isEmpty ? null : open.first;
 
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: Gap.sm, vertical: 3),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: Radii.brPill,
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (icon != null) ...[Icon(icon, size: 11, color: color), Gap.hXs],
-          Text(
-            label,
-            style: context.text.labelSmall?.copyWith(color: color, fontWeight: FontWeight.w700),
-          ),
-        ],
-      ),
-    );
+    return [
+      bill.category.label,
+      if (bill.isInstallment)
+        next?.installmentNumber != null
+            ? 'parcela ${next!.installmentNumber}/${bill.installmentCount}'
+            : '${bill.installmentCount}x',
+      if (next?.dueDate != null) 'vence ${Fmt.dateShort(next!.dueDate!)}',
+    ].join(' · ');
   }
 }

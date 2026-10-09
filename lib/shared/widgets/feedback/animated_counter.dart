@@ -4,14 +4,15 @@ import '../../../core/extensions/context_ext.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/formatters.dart';
 
-/// Valor monetário que "conta" de 0 até o total ao aparecer, e anima
-/// suavemente sempre que o valor muda.
+/// Valor monetário que conta até o total quando aparece e desliza até o
+/// novo valor quando muda. A curva desacelera no fim, então os últimos
+/// centavos assentam devagar em vez de "pularem".
 class AnimatedMoney extends StatelessWidget {
   const AnimatedMoney(
     this.value, {
     super.key,
     this.style,
-    this.duration = Motion.lazy,
+    this.duration = Motion.reveal,
     this.compact = false,
   });
 
@@ -20,25 +21,23 @@ class AnimatedMoney extends StatelessWidget {
   final Duration duration;
   final bool compact;
 
+  String _format(num v) => compact ? Fmt.moneyCompact(v) : Fmt.money(v);
+
   @override
   Widget build(BuildContext context) {
     final effective = style ?? context.text.headlineMedium;
-    if (context.reduceMotion) {
-      return Text(compact ? Fmt.moneyCompact(value) : Fmt.money(value), style: effective);
-    }
+    if (context.reduceMotion) return Text(_format(value), style: effective);
+
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: value.toDouble()),
       duration: duration,
-      curve: Motion.smooth,
-      builder: (context, v, _) => Text(
-        compact ? Fmt.moneyCompact(v) : Fmt.money(v),
-        style: effective,
-      ),
+      curve: Curves.easeOutCubic,
+      builder: (context, v, _) => Text(_format(v), style: effective),
     );
   }
 }
 
-/// Contador inteiro animado (nº de fotos, dias, itens...).
+/// Contador inteiro (nº de fotos, dias, itens...), com a mesma entrada.
 class AnimatedCount extends StatelessWidget {
   const AnimatedCount(this.value, {super.key, this.style, this.suffix = ''});
 
@@ -51,8 +50,8 @@ class AnimatedCount extends StatelessWidget {
     if (context.reduceMotion) return Text('$value$suffix', style: style);
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: value.toDouble()),
-      duration: Motion.slow,
-      curve: Motion.smooth,
+      duration: Motion.reveal,
+      curve: Curves.easeOutCubic,
       builder: (context, v, _) => Text('${v.round()}$suffix', style: style),
     );
   }

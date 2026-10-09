@@ -1,40 +1,62 @@
 import 'package:flutter/material.dart';
 
-/// Paleta da viagem: pôr do sol encontrando o oceano.
+/// Paleta alegre: um vermelho suave (coral) como destaque, pêssego de
+/// apoio e cores de categoria em tons pastel vivos, sobre um branco quente.
 ///
-/// As cores são pensadas em pares (base + suave) para permitir fundos
-/// delicados sem recorrer a opacidade em cima de imagens.
+/// Os nomes vêm da primeira paleta do app (coral, sunset, turquoise...) e
+/// foram mantidos de propósito: são usados no app inteiro. `coral` é o
+/// destaque, seja qual for a cor dele.
 abstract final class AppColors {
-  // Cores da marca
-  static const coral = Color(0xFFFF6B6B);
-  static const coralSoft = Color(0xFFFFE5E3);
-  static const sunset = Color(0xFFFFA45B);
-  static const sunsetSoft = Color(0xFFFFEEDC);
-  static const turquoise = Color(0xFF4ECDC4);
-  static const turquoiseSoft = Color(0xFFDFF6F4);
-  static const deepSea = Color(0xFF1A535C);
-  static const sand = Color(0xFFFFF6EC);
-  static const palm = Color(0xFF2EC4A6);
-  static const sky = Color(0xFF5AA9E6);
-  static const grape = Color(0xFF9B7EDE);
+  // Destaque: vermelho suave, nunca saturado a ponto de parecer alerta.
+  static const coral = Color(0xFFE5665E);
+  static const coralSoft = Color(0xFFFDECEA);
 
-  // Neutros quentes (nunca cinza puro: cinza puro deixa a tela corporativa)
-  static const ink = Color(0xFF1B2430);
-  static const inkMuted = Color(0xFF5E6B7A);
-  static const inkFaint = Color(0xFF95A1AF);
+  /// Borda dos blocos tingidos de destaque.
+  static const coralBorder = Color(0xFFF6CDC8);
+
+  // Apoio e categorias — pastel, mas com cor de verdade.
+  static const sunset = Color(0xFFF29E5C);
+  static const sunsetSoft = Color(0xFFFFF0E3);
+  static const turquoise = Color(0xFF3FB5A6);
+  static const turquoiseSoft = Color(0xFFE2F5F2);
+  static const deepSea = Color(0xFF3F6F96);
+  static const sand = Color(0xFFFBF1EC);
+  static const palm = Color(0xFF5DB37A);
+  static const sky = Color(0xFF5B9FE0);
+  static const grape = Color(0xFF9B83D9);
+
+  // Neutros quentes
+  static const ink = Color(0xFF2B201E);
+  static const inkMuted = Color(0xFF7B6A66);
+  static const inkFaint = Color(0xFFA59490);
   static const surface = Color(0xFFFFFFFF);
-  static const background = Color(0xFFFDF8F3);
-  static const outline = Color(0xFFEDE4DA);
+  static const background = Color(0xFFFFF9F6);
+  static const outline = Color(0xFFF0E3DE);
 
-  // Neutros do tema escuro
-  static const darkBackground = Color(0xFF0E1620);
-  static const darkSurface = Color(0xFF16212E);
-  static const darkOutline = Color(0xFF25323F);
+  /// Divisória entre as linhas de uma lista — mais clara que a borda.
+  static const divider = Color(0xFFF7EDE9);
 
-  // Semânticas
-  static const success = Color(0xFF2EC4A6);
-  static const warning = Color(0xFFFFB020);
-  static const danger = Color(0xFFF2545B);
+  /// Fundo de chip, de aba no hover e de trilho de progresso.
+  static const chip = Color(0xFFFAEEEA);
+
+  // Tema escuro, também quente: um marrom muito escuro em vez de cinza.
+  static const darkBackground = Color(0xFF171211);
+  static const darkSurface = Color(0xFF211A19);
+  static const darkOutline = Color(0xFF3A2E2C);
+  static const darkDivider = Color(0xFF2C2321);
+  static const darkChip = Color(0xFF2E2422);
+  static const darkInk = Color(0xFFF6ECE9);
+  static const darkInkMuted = Color(0xFFB4A29E);
+  static const darkAccent = Color(0xFFF2857D);
+  static const darkAccentSoft = Color(0xFF3A2220);
+
+  // Semânticas. "Pago" é verde-menta, separado do destaque vermelho.
+  static const success = Color(0xFF3FA772);
+  static const successSoft = Color(0xFFE3F5EA);
+  static const darkSuccess = Color(0xFF6CCB98);
+  static const darkSuccessSoft = Color(0xFF1C2E24);
+  static const warning = Color(0xFFE39A2F);
+  static const danger = Color(0xFFC9413A);
 
   // Gradientes
   static const sunsetGradient = LinearGradient(
@@ -61,8 +83,9 @@ abstract final class AppColors {
     colors: [palm, turquoise],
   );
 
-  /// Sombra colorida: mais viva que o cinza padrão do Material.
-  static List<BoxShadow> glow(Color color, {double opacity = 0.28, double blur = 24, double y = 10}) => [
+  /// Sombra tingida, para o que deve "brilhar" (botão principal, cartão
+  /// em destaque). Fraca por padrão: é um halo, não um holofote.
+  static List<BoxShadow> glow(Color color, {double opacity = 0.22, double blur = 20, double y = 8}) => [
         BoxShadow(
           color: color.withValues(alpha: opacity),
           blurRadius: blur,
@@ -70,11 +93,28 @@ abstract final class AppColors {
         ),
       ];
 
+  /// Sombra de repouso dos cartões: quase imperceptível, só tira o cartão
+  /// do chão.
   static List<BoxShadow> get softShadow => [
         BoxShadow(
-          color: ink.withValues(alpha: 0.06),
-          blurRadius: 20,
-          offset: const Offset(0, 6),
+          color: ink.withValues(alpha: 0.04),
+          blurRadius: 12,
+          offset: const Offset(0, 3),
+        ),
+      ];
+
+  /// A sombra de quando um cartão é apontado pelo mouse: um pouco tingida
+  /// de coral no claro, preta e mais densa no escuro.
+  static List<BoxShadow> lift({required bool dark}) => [
+        BoxShadow(
+          color: (dark ? Colors.black : coral).withValues(alpha: dark ? 0.5 : 0.14),
+          blurRadius: 28,
+          offset: const Offset(0, 10),
+        ),
+        BoxShadow(
+          color: Colors.black.withValues(alpha: dark ? 0.25 : 0.04),
+          blurRadius: 4,
+          offset: const Offset(0, 1),
         ),
       ];
 }
