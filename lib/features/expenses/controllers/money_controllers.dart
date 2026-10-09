@@ -194,11 +194,14 @@ final owedToMeProvider = Provider<int>(
   if (memberId == null) return 0;
 
   final bills = ref.watch(billsProvider).valueOrNull ?? const <Bill>[];
-  final myBills = bills.where((b) => b.paidByMemberId == memberId).map((b) => b.id).toSet();
+  final payerOf = {for (final b in bills) b.id: b.paidByMemberId};
   final shares = ref.watch(allSharesProvider).valueOrNull ?? const <BillShare>[];
 
+  // No acerto de conta aberta cada cota diz para quem é paga; nas demais
+  // quem recebe é quem bancou a conta.
   return shares
-      .where((s) => myBills.contains(s.billId) && !s.isPaid && !s.isOwnerShare)
+      .where((s) =>
+          !s.isPaid && !s.isOwnerShare && (s.creditorId ?? payerOf[s.billId]) == memberId)
       .fold<int>(0, (sum, s) => sum + s.remainingCents);
   },
   dependencies: [billsProvider, allSharesProvider],

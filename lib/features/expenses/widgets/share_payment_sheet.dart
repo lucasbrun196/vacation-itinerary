@@ -167,9 +167,8 @@ class _SharePaymentSheetState extends ConsumerState<SharePaymentSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final receiver = widget.bill.paidByMemberId == null
-        ? null
-        : ref.watch(membersByIdProvider)[widget.bill.paidByMemberId];
+    final receiverId = widget.shares.firstOrNull?.creditorId ?? widget.bill.paidByMemberId;
+    final receiver = receiverId == null ? null : ref.watch(membersByIdProvider)[receiverId];
 
     return Column(
       mainAxisSize: MainAxisSize.min,

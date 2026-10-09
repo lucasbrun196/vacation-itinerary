@@ -9,8 +9,10 @@ import '../../../core/utils/money.dart';
 import '../../../data/models/attachment.dart';
 import '../../../data/models/bill.dart';
 import '../../../data/models/bill_entry.dart';
+import '../../../data/models/member.dart';
 import '../../../data/services/file_picker_service.dart';
 import '../../../data/services/storage_service.dart';
+import '../../../shared/widgets/domain/member_avatar.dart';
 import '../../../shared/widgets/inputs/money_field.dart';
 import '../../../shared/widgets/layout/app_sheet.dart';
 import '../../../shared/widgets/media/attachment_tile.dart';
@@ -44,6 +46,7 @@ class _EntryFormSheetState extends ConsumerState<EntryFormSheet> {
   final _notesController = TextEditingController();
 
   late DateTime _date;
+  String? _paidByMemberId;
   List<Attachment> _receipts = [];
   bool _saving = false;
   bool _uploading = false;
@@ -54,12 +57,24 @@ class _EntryFormSheetState extends ConsumerState<EntryFormSheet> {
     super.initState();
     final entry = widget.entry;
     _date = entry?.date ?? DateTime.now();
+    _paidByMemberId = entry?.paidByMemberId ?? _defaultPayer();
     if (entry != null) {
       _descriptionController.text = entry.description;
       _notesController.text = entry.notes ?? '';
       _receipts = [...entry.receipts];
       MoneyField.setCents(_amountController, entry.amountCents);
     }
+  }
+
+  /// Quem está lançando costuma ser quem acabou de pagar. Se essa pessoa
+  /// não divide a conta, fica quem bancou a conta.
+  String? _defaultPayer() {
+    final uid = ref.read(currentUidProvider);
+    final bill = widget.bill;
+    if (uid != null && (bill.participantIds.contains(uid) || bill.paidByMemberId == uid)) {
+      return uid;
+    }
+    return bill.paidByMemberId ?? bill.participantIds.firstOrNull;
   }
 
   @override
@@ -100,6 +115,10 @@ class _EntryFormSheetState extends ConsumerState<EntryFormSheet> {
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
+    if (_paidByMemberId == null) {
+      context.showSnack('Escolha quem pagou', isError: true);
+      return;
+    }
 
     setState(() => _saving = true);
     try {
@@ -111,7 +130,7 @@ class _EntryFormSheetState extends ConsumerState<EntryFormSheet> {
               description: _descriptionController.text.trim(),
               amountCents: Money.parse(_amountController.text) ?? 0,
               date: _date,
-              paidByMemberId: widget.bill.paidByMemberId,
+              paidByMemberId: _paidByMemberId,
               receipts: _receipts,
               notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
               createdAt: widget.entry?.createdAt,
@@ -158,11 +177,18 @@ class _EntryFormSheetState extends ConsumerState<EntryFormSheet> {
                     decoration: InputDecoration(
                       labelText: 'Descrição',
                       hintText: widget.bill.category.name == 'fuel'
-                          ? 'Posto Shell, BR-101'
-                          : 'O que foi',
+                          ? 'Opcional · Posto Shell, BR-101'
+                          : 'Opcional',
                     ),
-                    validator: (v) =>
-                        (v == null || v.trim().isEmpty) ? 'Descreva o lançamento' : null,
+                  ),
+                  Gap.vXl,
+                  Text('Quem pagou', style: context.text.labelLarge),
+                  Text('Quem bancou este lançamento', style: context.text.bodySmall),
+                  Gap.vSm,
+                  _PayerSelector(
+                    bill: widget.bill,
+                    selected: _paidByMemberId,
+                    onSelect: (id) => setState(() => _paidByMemberId = id),
                   ),
                   Gap.vLg,
                   InkWell(
@@ -219,6 +245,45 @@ class _EntryFormSheetState extends ConsumerState<EntryFormSheet> {
           onSecondary: () => Navigator.of(context).pop(),
           isLoading: _saving,
         ),
+      ],
+    );
+  }
+}
+
+/// Quem pagou o lançamento: quem divide a conta primeiro, e depois o
+/// restante da viagem — às vezes paga quem nem entra na divisão.
+class _PayerSelector extends ConsumerWidget {
+  const _PayerSelector({required this.bill, required this.selected, required this.onSelect});
+
+  final Bill bill;
+  final String? selected;
+  final ValueChanged<String> onSelect;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final members = ref.watch(membersProvider).valueOrNull ?? const <Member>[];
+    final ordered = [
+      ...members.where((m) => bill.participantIds.contains(m.id)),
+      ...members.where((m) => !bill.participantIds.contains(m.id)),
+    ];
+
+    if (ordered.isEmpty) {
+      return Text('Nenhum participante cadastrado', style: context.text.bodySmall);
+    }
+
+    return Wrap(
+      spacing: Gap.sm,
+      runSpacing: Gap.sm,
+      children: [
+        for (final member in ordered)
+          MemberChip(
+            member: member,
+            selected: member.id == selected,
+            onTap: () => onSelect(member.id),
+            trailing: member.id == selected
+                ? Icon(Icons.radio_button_checked_rounded, size: 15, color: member.color)
+                : null,
+          ),
       ],
     );
   }

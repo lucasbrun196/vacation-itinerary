@@ -221,7 +221,8 @@ class _MyMoney extends ConsumerWidget {
                   ListTile(
                     dense: true,
                     leading: MemberAvatar(
-                      member: membersById[bills[share.billId]?.paidByMemberId] ?? member,
+                      member: membersById[share.creditorId ?? bills[share.billId]?.paidByMemberId] ??
+                          member,
                       size: 34,
                     ),
                     title: Text(
@@ -230,6 +231,7 @@ class _MyMoney extends ConsumerWidget {
                     ),
                     subtitle: Text(
                       [
+                        if (membersById[share.creditorId] case final to?) 'para ${to.shortName}',
                         if (share.installmentNumber != null) 'parcela ${share.installmentNumber}',
                         if (share.dueDate != null) 'vence ${Fmt.dateShort(share.dueDate!)}',
                       ].join(' · '),

@@ -14,6 +14,7 @@ class BillShare {
     required this.billId,
     this.tripId = '',
     required this.memberId,
+    this.creditorId,
     required this.amountCents,
     this.installmentNumber,
     this.dueDate,
@@ -35,6 +36,12 @@ class BillShare {
   final String tripId;
 
   final String memberId;
+
+  /// Para quem esta cota é paga. Só existe no acerto de conta aberta,
+  /// em que cada lançamento pode ter um pagador diferente; nas demais, quem
+  /// recebe é sempre o `paidByMemberId` da conta.
+  final String? creditorId;
+
   final int amountCents;
 
   /// 1..n para contas parceladas; null quando é pagamento único.
@@ -76,6 +83,7 @@ class BillShare {
       billId: d['billId'] as String? ?? '',
       tripId: d['tripId'] as String? ?? '',
       memberId: d['memberId'] as String? ?? '',
+      creditorId: d['creditorId'] as String?,
       amountCents: (d['amountCents'] as num?)?.toInt() ?? 0,
       installmentNumber: (d['installmentNumber'] as num?)?.toInt(),
       dueDate: (d['dueDate'] as Timestamp?)?.toDate(),
@@ -95,6 +103,7 @@ class BillShare {
         'billId': billId,
         'tripId': tripId,
         'memberId': memberId,
+        'creditorId': creditorId,
         'amountCents': amountCents,
         'installmentNumber': installmentNumber,
         'dueDate': dueDate == null ? null : Timestamp.fromDate(dueDate!),
@@ -122,6 +131,7 @@ class BillShare {
         billId: billId,
         tripId: tripId,
         memberId: memberId,
+        creditorId: creditorId,
         amountCents: amountCents ?? this.amountCents,
         installmentNumber: installmentNumber,
         dueDate: dueDate,
