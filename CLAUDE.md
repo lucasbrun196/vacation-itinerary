@@ -66,10 +66,15 @@ exclusão o `request.resource` é nulo, então qualquer validação que olhe os
 campos do documento nega a operação em silêncio — a UI parece funcionar e o
 documento continua lá.
 
-**`collectionGroup('shares')` precisa de duas coisas:** uma regra própria
+**`collectionGroup('shares')` precisa de três coisas:** uma regra própria
 (`match /{path=**}/shares/{shareId}`, porque as regras aninhadas não a
-autorizam) e o filtro por `tripId`, sem o qual a consulta atravessa as viagens
-de outras pessoas. Ver `FirestoreRefs.sharesOfTrip`.
+autorizam), o filtro por `tripId`, sem o qual a consulta atravessa as viagens
+de outras pessoas, e o índice de campo único de `tripId` com escopo
+`COLLECTION_GROUP` (o `fieldOverrides` de `firestore.indexes.json`) — o
+Firestore só cria sozinho os de escopo de coleção. Sem o índice a consulta
+falha, `allSharesProvider` vira lista vazia e todo painel de "já quitado"
+mostra zero, enquanto a tela da conta (que lê a subcoleção direto) mostra os
+pagamentos. Ver `FirestoreRefs.sharesOfTrip`.
 
 **Rotas usam `ShellRoute`, não `StatefulShellRoute`** — este último não aceita
 raiz de branch parametrizada, e todas as rotas internas são
