@@ -21,6 +21,7 @@ import '../data/services/firestore_refs.dart';
 import '../data/services/geocoding_service.dart';
 import '../data/services/local_prefs_service.dart';
 import '../data/services/storage_service.dart';
+import '../data/services/sync_status_service.dart';
 import '../data/services/weather_service.dart';
 
 // ---------------------------------------------------------------
@@ -46,6 +47,9 @@ final geocodingServiceProvider = Provider((ref) => GeocodingService());
 /// Previsão do tempo pela coordenada. Também não depende da viagem — o
 /// cache dele vive na sessão inteira, de propósito.
 final weatherServiceProvider = Provider((ref) => WeatherService());
+
+/// Traduz o metadado dos snapshots em "online / pendente / offline".
+final syncStatusServiceProvider = Provider((ref) => const SyncStatusService());
 
 /// Injetado no `main` depois de carregar as preferências.
 final prefsProvider = Provider<LocalPrefsService>(
@@ -99,6 +103,19 @@ final currentUserProvider = StreamProvider<AppUser?>((ref) async* {
   final repo = ref.watch(userRepositoryProvider);
   yield await repo.syncFromAuth(authUser);
   yield* repo.watchUser(authUser.uid);
+});
+
+/// Como está a sincronização com o servidor.
+///
+/// Fica sem valor enquanto ninguém está logado — não há documento para
+/// sondar, e fora da sessão o aviso não teria o que dizer.
+final syncStatusProvider = StreamProvider<SyncStatus>((ref) {
+  final uid = ref.watch(currentUidProvider);
+  if (uid == null) return const Stream.empty();
+
+  return ref.watch(syncStatusServiceProvider).watch(
+        ref.watch(userRepositoryProvider).watchSyncMetadata(uid),
+      );
 });
 
 // ---------------------------------------------------------------
