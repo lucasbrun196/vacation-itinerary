@@ -99,163 +99,211 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Stack(
-        children: [
-          const Positioned.fill(child: _Backdrop()),
-          SafeArea(
+      body: context.isMobile ? _buildMobile(context) : _buildWide(context),
+    );
+  }
+
+  /// Tela larga: a ilustração ocupa 40% da largura e toda a altura, à
+  /// esquerda; o formulário fica centrado no resto. Não rola — se a janela
+  /// for baixa demais, o `FittedBox` encolhe o formulário em vez de cortar.
+  Widget _buildWide(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // 2 : 3 é a divisão 40% / 60% pedida para a imagem e o formulário.
+        const Expanded(flex: 2, child: _Cover()),
+        Expanded(
+          flex: 3,
+          child: SafeArea(
             child: Center(
-              child: SingleChildScrollView(
+              child: Padding(
                 padding: const EdgeInsets.all(Gap.xl),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 400),
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: SizedBox(
+                    width: 400,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const _Logo(),
+                        Gap.vXl,
+                        _Card(child: _buildForm(context)),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Celular: a ilustração vira o fundo inteiro e o formulário flutua num
+  /// cartão no centro. Aqui rola, porque o teclado come metade da tela.
+  Widget _buildMobile(BuildContext context) {
+    return Stack(
+      children: [
+        const Positioned.fill(child: _Cover()),
+        SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(Gap.lg),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 400),
+                child: _Card(
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       const _Logo(),
                       Gap.vXl,
-                      _Card(
-                        child: Form(
-                          key: _formKey,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                _isSignUp ? 'Criar conta' : 'Entrar',
-                                style: context.text.headlineSmall,
-                              ),
-                              Gap.vXl,
-
-                              if (_isSignUp) ...[
-                                TextFormField(
-                                  controller: _nameController,
-                                  textCapitalization: TextCapitalization.words,
-                                  textInputAction: TextInputAction.next,
-                                  decoration: const InputDecoration(
-                                    labelText: 'Seu nome',
-                                    hintText: 'Nome e sobrenome',
-                                    prefixIcon: Icon(Icons.person_outline_rounded, size: 20),
-                                  ),
-                                  validator: (v) => (v == null || v.trim().length < 2)
-                                      ? 'Diga seu nome'
-                                      : null,
-                                ),
-                                Gap.vLg,
-                              ],
-
-                              TextFormField(
-                                controller: _emailController,
-                                keyboardType: TextInputType.emailAddress,
-                                textInputAction: TextInputAction.next,
-                                autofillHints: const [AutofillHints.email],
-                                decoration: const InputDecoration(
-                                  labelText: 'E-mail',
-                                  hintText: 'voce@email.com',
-                                  prefixIcon: Icon(Icons.alternate_email_rounded, size: 20),
-                                ),
-                                validator: (v) {
-                                  final value = v?.trim() ?? '';
-                                  if (value.isEmpty) return 'Informe seu e-mail';
-                                  final ok = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(value);
-                                  return ok ? null : 'E-mail inválido';
-                                },
-                              ),
-                              Gap.vLg,
-
-                              TextFormField(
-                                controller: _passwordController,
-                                obscureText: _obscure,
-                                textInputAction: TextInputAction.done,
-                                autofillHints: [
-                                  _isSignUp ? AutofillHints.newPassword : AutofillHints.password
-                                ],
-                                onFieldSubmitted: (_) => _submit(),
-                                decoration: InputDecoration(
-                                  labelText: 'Senha',
-                                  prefixIcon: const Icon(Icons.lock_outline_rounded, size: 20),
-                                  suffixIcon: IconButton(
-                                    onPressed: () => setState(() => _obscure = !_obscure),
-                                    icon: Icon(
-                                      _obscure
-                                          ? Icons.visibility_outlined
-                                          : Icons.visibility_off_outlined,
-                                      size: 20,
-                                    ),
-                                    tooltip: _obscure ? 'Mostrar senha' : 'Ocultar senha',
-                                  ),
-                                  helperText: _isSignUp ? 'Mínimo de 6 caracteres' : null,
-                                ),
-                                validator: (v) {
-                                  if (v == null || v.isEmpty) return 'Informe sua senha';
-                                  if (_isSignUp && v.length < 6) {
-                                    return 'A senha precisa ter ao menos 6 caracteres';
-                                  }
-                                  return null;
-                                },
-                              ),
-
-                              if (!_isSignUp)
-                                Align(
-                                  alignment: Alignment.centerRight,
-                                  child: TextButton(
-                                    onPressed: _loading ? null : _resetPassword,
-                                    child: const Text('Esqueci minha senha'),
-                                  ),
-                                ),
-
-                              if (_error != null) ...[
-                                Gap.vMd,
-                                ErrorBanner(message: _error!),
-                              ],
-
-                              Gap.vLg,
-                              FilledButton(
-                                onPressed: _loading ? null : _submit,
-                                child: _loading
-                                    ? SizedBox(
-                                        width: 18,
-                                        height: 18,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          color: context.colors.onPrimary,
-                                        ),
-                                      )
-                                    : Text(_isSignUp ? 'Criar conta' : 'Entrar'),
-                              ),
-                              Gap.vMd,
-                              // `Wrap`, não `Row`: a pergunta e o botão passam
-                              // dos 264px do cartão em tela estreita, e mais
-                              // ainda com a fonte aumentada no navegador.
-                              Wrap(
-                                alignment: WrapAlignment.center,
-                                crossAxisAlignment: WrapCrossAlignment.center,
-                                children: [
-                                  Text(
-                                    _isSignUp ? 'Já tem conta?' : 'Ainda não tem conta?',
-                                    style: context.text.bodySmall,
-                                  ),
-                                  TextButton(
-                                    onPressed: _loading ? null : _switchMode,
-                                    child: Text(_isSignUp ? 'Entrar' : 'Criar agora'),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
+                      _buildForm(context),
                     ],
                   ),
                 ),
               ),
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
-}
 
+  Widget _buildForm(BuildContext context) {
+    return Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              _isSignUp ? 'Criar conta' : 'Entrar',
+              style: context.text.headlineSmall,
+            ),
+            Gap.vXl,
+
+            if (_isSignUp) ...[
+              TextFormField(
+                controller: _nameController,
+                textCapitalization: TextCapitalization.words,
+                textInputAction: TextInputAction.next,
+                decoration: const InputDecoration(
+                  labelText: 'Seu nome',
+                  hintText: 'Nome e sobrenome',
+                  prefixIcon: Icon(Icons.person_outline_rounded, size: 20),
+                ),
+                validator: (v) => (v == null || v.trim().length < 2)
+                    ? 'Diga seu nome'
+                    : null,
+              ),
+              Gap.vLg,
+            ],
+
+            TextFormField(
+              controller: _emailController,
+              keyboardType: TextInputType.emailAddress,
+              textInputAction: TextInputAction.next,
+              autofillHints: const [AutofillHints.email],
+              decoration: const InputDecoration(
+                labelText: 'E-mail',
+                hintText: 'voce@email.com',
+                prefixIcon: Icon(Icons.alternate_email_rounded, size: 20),
+              ),
+              validator: (v) {
+                final value = v?.trim() ?? '';
+                if (value.isEmpty) return 'Informe seu e-mail';
+                final ok = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(value);
+                return ok ? null : 'E-mail inválido';
+              },
+            ),
+            Gap.vLg,
+
+            TextFormField(
+              controller: _passwordController,
+              obscureText: _obscure,
+              textInputAction: TextInputAction.done,
+              autofillHints: [
+                _isSignUp ? AutofillHints.newPassword : AutofillHints.password
+              ],
+              onFieldSubmitted: (_) => _submit(),
+              decoration: InputDecoration(
+                labelText: 'Senha',
+                prefixIcon: const Icon(Icons.lock_outline_rounded, size: 20),
+                suffixIcon: IconButton(
+                  onPressed: () => setState(() => _obscure = !_obscure),
+                  icon: Icon(
+                    _obscure
+                        ? Icons.visibility_outlined
+                        : Icons.visibility_off_outlined,
+                    size: 20,
+                  ),
+                  tooltip: _obscure ? 'Mostrar senha' : 'Ocultar senha',
+                ),
+                helperText: _isSignUp ? 'Mínimo de 6 caracteres' : null,
+              ),
+              validator: (v) {
+                if (v == null || v.isEmpty) return 'Informe sua senha';
+                if (_isSignUp && v.length < 6) {
+                  return 'A senha precisa ter ao menos 6 caracteres';
+                }
+                return null;
+              },
+            ),
+
+            if (!_isSignUp)
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: _loading ? null : _resetPassword,
+                  child: const Text('Esqueci minha senha'),
+                ),
+              ),
+
+            if (_error != null) ...[
+              Gap.vMd,
+              ErrorBanner(message: _error!),
+            ],
+
+            Gap.vLg,
+            FilledButton(
+              onPressed: _loading ? null : _submit,
+              child: _loading
+                  ? SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: context.colors.onPrimary,
+                      ),
+                    )
+                  : Text(_isSignUp ? 'Criar conta' : 'Entrar'),
+            ),
+            Gap.vMd,
+            // `Wrap`, não `Row`: a pergunta e o botão passam
+            // dos 264px do cartão em tela estreita, e mais
+            // ainda com a fonte aumentada no navegador.
+            Wrap(
+              alignment: WrapAlignment.center,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Text(
+                  _isSignUp ? 'Já tem conta?' : 'Ainda não tem conta?',
+                  style: context.text.bodySmall,
+                ),
+                TextButton(
+                  onPressed: _loading ? null : _switchMode,
+                  child: Text(_isSignUp ? 'Entrar' : 'Criar agora'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+  }
+}
 
 class _Logo extends StatelessWidget {
   const _Logo();
@@ -296,24 +344,17 @@ class _Card extends StatelessWidget {
   }
 }
 
-/// Fundo do login: um degradê bem suave de coral para pêssego, cruzando
-/// a tela na diagonal.
-class _Backdrop extends StatelessWidget {
-  const _Backdrop();
+/// A ilustração do avião sobre a praia. Decorativa: fica fora da árvore de
+/// acessibilidade.
+class _Cover extends StatelessWidget {
+  const _Cover();
 
   @override
   Widget build(BuildContext context) {
-    final dark = context.isDark;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: dark
-              ? const [Color(0xFF2A1A19), Color(0xFF171211), Color(0xFF2A2017)]
-              : const [AppColors.coralSoft, AppColors.background, AppColors.sunsetSoft],
-        ),
-      ),
+    return Image.asset(
+      'assets/images/login_cover.jpg',
+      fit: BoxFit.cover,
+      excludeFromSemantics: true,
     );
   }
 }

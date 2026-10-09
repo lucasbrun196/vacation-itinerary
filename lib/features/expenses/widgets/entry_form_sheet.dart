@@ -9,6 +9,7 @@ import '../../../core/utils/money.dart';
 import '../../../data/models/attachment.dart';
 import '../../../data/models/bill.dart';
 import '../../../data/models/bill_entry.dart';
+import '../../../data/models/enums.dart';
 import '../../../data/models/member.dart';
 import '../../../data/services/file_picker_service.dart';
 import '../../../data/services/storage_service.dart';
@@ -177,7 +178,7 @@ class _EntryFormSheetState extends ConsumerState<EntryFormSheet> {
                     textCapitalization: TextCapitalization.sentences,
                     decoration: InputDecoration(
                       labelText: 'Descrição',
-                      hintText: widget.bill.category.name == 'fuel'
+                      hintText: widget.bill.categories.contains(BillCategory.fuel)
                           ? 'Opcional · Posto Shell, BR-101'
                           : 'Opcional',
                     ),

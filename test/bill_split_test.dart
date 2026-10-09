@@ -38,7 +38,7 @@ void main() {
     final airbnb = Bill(
       id: 'airbnb',
       title: 'Aluguel do Airbnb',
-      category: BillCategory.lodging,
+      categories: const [BillCategory.lodging],
       type: BillType.fixed,
       totalAmountCents: 900000,
       installmentCount: 6,
@@ -87,7 +87,7 @@ void main() {
       final bill = Bill(
         id: 'quebrado',
         title: 'Passeio',
-        category: BillCategory.tours,
+        categories: const [BillCategory.tours],
         type: BillType.fixed,
         totalAmountCents: 100001,
         installmentCount: 3,
@@ -101,7 +101,7 @@ void main() {
       final bill = Bill(
         id: 'quebrado',
         title: 'Passeio',
-        category: BillCategory.tours,
+        categories: const [BillCategory.tours],
         type: BillType.fixed,
         totalAmountCents: 100001,
         installmentCount: 3,
@@ -121,7 +121,7 @@ void main() {
       final bill = Bill(
         id: 'x',
         title: 'x',
-        category: BillCategory.other,
+        categories: const [BillCategory.other],
         type: BillType.fixed,
         totalAmountCents: 30000,
         installmentCount: 3,
@@ -139,7 +139,7 @@ void main() {
     Bill gas(int totalCents) => Bill(
           id: 'gasolina',
           title: 'Gasolina',
-          category: BillCategory.fuel,
+          categories: const [BillCategory.fuel],
           type: BillType.accumulating,
           paidByMemberId: 'lucas',
           participantIds: ['lucas', 'manuela', 'ana', 'pedro'],
@@ -180,7 +180,7 @@ void main() {
     Bill conta(int totalCents, int parcelas, int pessoas) => Bill(
           id: 'x',
           title: 'x',
-          category: BillCategory.lodging,
+          categories: const [BillCategory.lodging],
           type: BillType.fixed,
           totalAmountCents: totalCents,
           installmentCount: parcelas,
@@ -220,7 +220,7 @@ void main() {
       final bill = Bill(
         id: 'quarto',
         title: 'Quarto de casal',
-        category: BillCategory.lodging,
+        categories: const [BillCategory.lodging],
         type: BillType.fixed,
         totalAmountCents: 100000,
         participantIds: ['casal', 'solteiro'],

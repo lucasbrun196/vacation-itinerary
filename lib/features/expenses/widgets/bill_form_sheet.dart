@@ -15,6 +15,7 @@ import '../../../shared/widgets/inputs/date_range_dialog.dart';
 import '../../../shared/widgets/domain/member_avatar.dart';
 import '../../../shared/widgets/inputs/money_field.dart';
 import '../../../shared/widgets/layout/app_sheet.dart';
+import '../../../shared/widgets/inputs/multi_choice_chips.dart';
 
 Future<void> showBillForm(BuildContext context, {Bill? bill}) => showAppSheet(
       context: context,
@@ -41,7 +42,8 @@ class _BillFormSheetState extends ConsumerState<BillFormSheet> {
   final _notesController = TextEditingController();
 
   late BillType _type;
-  late BillCategory _category;
+  /// Na ordem em que foram marcadas: a primeira é a principal.
+  late List<BillCategory> _categories;
   late int _installmentCount;
   String? _paidByMemberId;
   Set<String> _participants = {};
@@ -54,7 +56,7 @@ class _BillFormSheetState extends ConsumerState<BillFormSheet> {
     final bill = widget.bill;
 
     _type = bill?.type ?? BillType.fixed;
-    _category = bill?.category ?? BillCategory.other;
+    _categories = List.of(bill?.categories ?? const [BillCategory.other]);
     _installmentCount = bill?.installmentCount ?? 1;
     _paidByMemberId = bill?.paidByMemberId;
     _participants = {...?bill?.participantIds};
@@ -99,7 +101,7 @@ class _BillFormSheetState extends ConsumerState<BillFormSheet> {
   Bill _buildBill(String id) => Bill(
         id: id,
         title: _titleController.text.trim(),
-        category: _category,
+        categories: _categories,
         type: _type,
         totalAmountCents: _type == BillType.fixed ? _totalCents : null,
         installmentCount: _isInstallment ? _installmentCount : 1,
@@ -188,11 +190,14 @@ class _BillFormSheetState extends ConsumerState<BillFormSheet> {
                   ),
                   Gap.vLg,
 
-                  Text('Categoria', style: context.text.labelLarge),
+                  Text('Categorias', style: context.text.labelLarge),
                   Gap.vSm,
-                  _CategoryPicker(
-                    value: _category,
-                    onChanged: (c) => setState(() => _category = c),
+                  MultiChoiceChips<BillCategory>(
+                    options: BillCategory.values,
+                    selected: _categories,
+                    labelOf: (c) => c.label,
+                    required: true,
+                    onChanged: (c) => setState(() => _categories = c),
                   ),
                   Gap.vXl,
 
@@ -371,29 +376,6 @@ class _TypeSelector extends StatelessWidget {
                 ),
               ),
             ),
-          ),
-      ],
-    );
-  }
-}
-
-class _CategoryPicker extends StatelessWidget {
-  const _CategoryPicker({required this.value, required this.onChanged});
-
-  final BillCategory value;
-  final ValueChanged<BillCategory> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Wrap(
-      spacing: Gap.sm,
-      runSpacing: Gap.sm,
-      children: [
-        for (final category in BillCategory.values)
-          ChoiceChip(
-            label: Text(category.label),
-            selected: value == category,
-            onSelected: (_) => onChanged(category),
           ),
       ],
     );

@@ -223,7 +223,7 @@ class _BillHeader extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            [bill.category.label, ?payerLabel].join(' · '),
+            [bill.categoriesLabel, ?payerLabel].join(' · '),
             style: context.text.labelSmall,
           ),
           Gap.vXs,

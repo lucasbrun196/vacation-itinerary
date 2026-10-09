@@ -18,7 +18,7 @@ class Bill {
   const Bill({
     required this.id,
     required this.title,
-    required this.category,
+    required this.categories,
     required this.type,
     this.totalAmountCents,
     this.installmentCount = 1,
@@ -39,7 +39,14 @@ class Bill {
 
   final String id;
   final String title;
-  final BillCategory category;
+  /// Do que é a conta — pode ser mais de uma coisa ("Mercado" e "Café").
+  /// Nunca vazia. A ordem é a da escolha, e a primeira é a principal.
+  final List<BillCategory> categories;
+
+  /// A categoria principal: dá ícone e cor à conta.
+  BillCategory get category => categories.first;
+
+  String get categoriesLabel => categories.map((c) => c.label).join(', ');
   final BillType type;
 
   /// Valor de referência informado no cadastro. Em conta aberta fica
@@ -175,12 +182,20 @@ class Bill {
   // Serialização
   // ---------------------------------------------------------------
 
+  /// Lê as categorias aceitando o formato antigo, de uma só em `category`.
+  static List<BillCategory> _readCategories(Map<String, dynamic> d) {
+    final list = d['categories'];
+    final ids = list is List ? list.whereType<String>() : [?d['category'] as String?];
+    final result = ids.map(BillCategory.fromId).toSet().toList();
+    return result.isEmpty ? const [BillCategory.other] : result;
+  }
+
   factory Bill.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
     final d = doc.data() ?? {};
     return Bill(
       id: doc.id,
       title: d['title'] as String? ?? '',
-      category: BillCategory.fromId(d['category'] as String?),
+      categories: _readCategories(d),
       type: BillType.values.firstWhere(
         (t) => t.name == d['type'],
         orElse: () => BillType.fixed,
@@ -212,7 +227,10 @@ class Bill {
 
   Map<String, dynamic> toMap() => {
         'title': title,
-        'category': category.name,
+        'categories': [for (final c in categories) c.name],
+        // O campo antigo, de uma categoria só. Salvar é `merge: true`, então
+        // ele precisa ser apagado na mão, ou volta na leitura.
+        'category': FieldValue.delete(),
         'type': type.name,
         'totalAmountCents': totalAmountCents,
         'installmentCount': installmentCount,
@@ -233,7 +251,7 @@ class Bill {
 
   Bill copyWith({
     String? title,
-    BillCategory? category,
+    List<BillCategory>? categories,
     BillType? type,
     int? totalAmountCents,
     int? installmentCount,
@@ -251,7 +269,7 @@ class Bill {
       Bill(
         id: id,
         title: title ?? this.title,
-        category: category ?? this.category,
+        categories: categories ?? this.categories,
         type: type ?? this.type,
         totalAmountCents: totalAmountCents ?? this.totalAmountCents,
         installmentCount: installmentCount ?? this.installmentCount,

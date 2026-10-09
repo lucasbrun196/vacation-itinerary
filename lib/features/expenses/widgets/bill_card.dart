@@ -86,7 +86,7 @@ class BillRow extends ConsumerWidget {
   static String _details(Bill bill, List<BillShare> shares) {
     if (bill.isAccumulating && shares.isEmpty) {
       return [
-        bill.category.label,
+        bill.categoriesLabel,
         bill.status == BillStatus.settled
             ? 'fechada'
             : '${bill.entriesCount} ${bill.entriesCount == 1 ? "lançamento" : "lançamentos"}',

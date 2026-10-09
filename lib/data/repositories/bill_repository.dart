@@ -41,9 +41,12 @@ class BillRepository {
     final id = bill.id.isEmpty ? _refs.bills(tripId).doc().id : bill.id;
     final batch = _refs.db.batch();
 
+    // Documento novo não tem campo antigo para apagar — e um `set` sem
+    // `merge` recusa o `FieldValue.delete()` que o `toMap` manda.
+    final data = bill.toMap()..remove('category');
     batch.set(
       _refs.bill(tripId, id),
-      {...bill.toMap(), 'createdAt': FieldValue.serverTimestamp()},
+      {...data, 'createdAt': FieldValue.serverTimestamp()},
     );
 
     if (!bill.isAccumulating) {
