@@ -28,6 +28,7 @@ class AccountScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(currentUserProvider).valueOrNull;
+    final hasPassword = ref.read(authServiceProvider).hasPassword;
 
     return AppPage(
       title: 'Sua conta',
@@ -71,7 +72,12 @@ class AccountScreen extends ConsumerWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                       Gap.vXs,
-                      Text('O e-mail é o login e não muda aqui.', style: context.text.labelSmall),
+                      Text(
+                        hasPassword
+                            ? 'O e-mail é o login e não muda aqui.'
+                            : 'Você entra com a conta Google deste e-mail.',
+                        style: context.text.labelSmall,
+                      ),
                     ],
                   ),
                 ),
@@ -80,32 +86,35 @@ class AccountScreen extends ConsumerWidget {
           ),
 
         // ---------------- Segurança ----------------
-        Gap.vXl,
-        const SectionHeader(title: 'Segurança'),
-        GlassCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              OutlinedButton.icon(
-                onPressed: () => showAppSheet(
-                  context: context,
-                  title: 'Trocar senha',
-                  subtitle: 'Confirme a senha atual para mudar',
-                  builder: (_) => const _PasswordSheet(),
+        // Conta só do Google: não há senha para trocar nem redefinir.
+        if (hasPassword) ...[
+          Gap.vXl,
+          const SectionHeader(title: 'Segurança'),
+          GlassCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: () => showAppSheet(
+                    context: context,
+                    title: 'Trocar senha',
+                    subtitle: 'Confirme a senha atual para mudar',
+                    builder: (_) => const _PasswordSheet(),
+                  ),
+                  icon: const Icon(Icons.password, size: 18),
+                  label: const Text('Trocar senha'),
                 ),
-                icon: const Icon(Icons.password, size: 18),
-                label: const Text('Trocar senha'),
-              ),
-              if (user != null) ...[
-                Gap.vSm,
-                TextButton(
-                  onPressed: () => _sendResetLink(context, ref, user.email),
-                  child: const Text('Receber link de redefinição por e-mail'),
-                ),
+                if (user != null) ...[
+                  Gap.vSm,
+                  TextButton(
+                    onPressed: () => _sendResetLink(context, ref, user.email),
+                    child: const Text('Receber link de redefinição por e-mail'),
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
-        ),
+        ],
 
         // ---------------- Sessão ----------------
         Gap.vXl,
@@ -459,6 +468,7 @@ class _DeleteAccountSheetState extends ConsumerState<_DeleteAccountSheet> {
   final _passwordController = TextEditingController();
 
   Future<List<Trip>>? _trips;
+  late final bool _hasPassword = ref.read(authServiceProvider).hasPassword;
   bool _obscure = true;
   bool _deleting = false;
   String? _error;
@@ -489,7 +499,10 @@ class _DeleteAccountSheetState extends ConsumerState<_DeleteAccountSheet> {
 
     try {
       final auth = ref.read(authServiceProvider);
-      await auth.reauthenticate(_passwordController.text);
+      // Quem só tem Google confirma escolhendo a conta de novo.
+      await (_hasPassword
+          ? auth.reauthenticate(_passwordController.text)
+          : auth.reauthenticateWithGoogle());
 
       final tripRepo = ref.read(tripRepositoryProvider);
       for (final trip in trips) {
@@ -500,6 +513,8 @@ class _DeleteAccountSheetState extends ConsumerState<_DeleteAccountSheet> {
 
       // Sem navegar: o `authStateProvider` cai para nulo e o router
       // leva sozinho para a tela de login.
+    } on AuthCancelled {
+      if (mounted) setState(() => _deleting = false);
     } on AuthFailure catch (e) {
       if (mounted) {
         setState(() {
@@ -623,29 +638,38 @@ class _DeleteAccountSheetState extends ConsumerState<_DeleteAccountSheet> {
                             'aparece continuam registradas para a turma.',
                     style: context.text.bodyMedium,
                   ),
-                  Gap.vXl,
-                  TextFormField(
-                    controller: _passwordController,
-                    obscureText: _obscure,
-                    autofillHints: const [AutofillHints.password],
-                    decoration: InputDecoration(
-                      labelText: 'Senha atual',
-                      helperText: 'Para confirmar que é você',
-                      prefixIcon: const Icon(Icons.lock_outline_rounded, size: 20),
-                      suffixIcon: IconButton(
-                        onPressed: () => setState(() => _obscure = !_obscure),
-                        icon: Icon(
-                          _obscure
-                              ? Icons.visibility_outlined
-                              : Icons.visibility_off_outlined,
-                          size: 20,
+                  if (_hasPassword) ...[
+                    Gap.vXl,
+                    TextFormField(
+                      controller: _passwordController,
+                      obscureText: _obscure,
+                      autofillHints: const [AutofillHints.password],
+                      decoration: InputDecoration(
+                        labelText: 'Senha atual',
+                        helperText: 'Para confirmar que é você',
+                        prefixIcon: const Icon(Icons.lock_outline_rounded, size: 20),
+                        suffixIcon: IconButton(
+                          onPressed: () => setState(() => _obscure = !_obscure),
+                          icon: Icon(
+                            _obscure
+                                ? Icons.visibility_outlined
+                                : Icons.visibility_off_outlined,
+                            size: 20,
+                          ),
+                          tooltip: _obscure ? 'Mostrar senha' : 'Ocultar senha',
                         ),
-                        tooltip: _obscure ? 'Mostrar senha' : 'Ocultar senha',
                       ),
+                      validator: (v) =>
+                          (v == null || v.isEmpty) ? 'Informe sua senha' : null,
                     ),
-                    validator: (v) =>
-                        (v == null || v.isEmpty) ? 'Informe sua senha' : null,
-                  ),
+                  ] else ...[
+                    Gap.vMd,
+                    Text(
+                      'Para confirmar que é você, o Google vai pedir que '
+                      'escolha sua conta de novo.',
+                      style: context.text.bodySmall,
+                    ),
+                  ],
                   if (_error != null) ...[
                     Gap.vLg,
                     ErrorBanner(message: _error!),
