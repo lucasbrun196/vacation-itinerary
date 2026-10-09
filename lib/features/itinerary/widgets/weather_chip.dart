@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../app/providers.dart';
 import '../../../core/extensions/context_ext.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/theme/app_typography.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../data/models/itinerary_item.dart';
 import '../../../data/models/weather.dart';
@@ -37,8 +38,8 @@ class WeatherChip extends ConsumerWidget {
 
     return forecast.when(
       loading: () => const ShimmerBox(
-        width: 142,
-        height: 26,
+        width: 120,
+        height: 22,
         borderRadius: Radii.brPill,
       ),
       error: (_, _) => const SizedBox.shrink(),
@@ -57,7 +58,7 @@ class WeatherChip extends ConsumerWidget {
 
 /// O botão em si.
 ///
-/// Não usa o `ItineraryChip` de propósito: os outros chips do card são
+/// Não usa o `ItineraryChip` de propósito: os outros chips da linha são
 /// etiquetas passivas, e este abre uma tela. A borda, o rótulo "Ver
 /// previsão" e a seta são o que separa um do outro à primeira vista — sem
 /// eles a temperatura sozinha parecia só mais uma etiqueta.
@@ -69,45 +70,46 @@ class _WeatherButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final accent = day.condition.color;
+    final tint = day.condition.color;
+    final muted = context.isDark
+        ? Color.lerp(tint, Colors.white, 0.3)!
+        : Color.lerp(tint, Colors.black, 0.25)!;
 
     return Tooltip(
       message: '${day.detail}\nVer a previsão completa do dia',
       // O `InkWell` também segura o toque: sem ele, o gesto vazaria
-      // para o card e abriria o formulário da atividade.
+      // para a linha e abriria o formulário da atividade.
       child: InkWell(
         borderRadius: Radii.brPill,
         onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.fromLTRB(Gap.sm, 5, Gap.xs, 5),
+          padding: const EdgeInsets.fromLTRB(Gap.sm, 3, Gap.xs, 3),
           decoration: BoxDecoration(
-            color: accent.withValues(alpha: 0.16),
+            color: tint.withValues(alpha: context.isDark ? 0.22 : 0.14),
             borderRadius: Radii.brPill,
-            border: Border.all(color: accent.withValues(alpha: 0.55), width: 1.2),
+            border: Border.all(color: tint.withValues(alpha: 0.35)),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(day.condition.icon, size: 13, color: accent),
+              Icon(day.condition.icon, size: 13, color: muted),
               Gap.hXs,
               Text(
                 day.tempLabel,
-                style: context.text.labelSmall
-                    ?.copyWith(color: accent, fontWeight: FontWeight.w800),
+                style: AppTypography.mono(size: 12, weight: FontWeight.w600, color: muted),
               ),
-              Gap.hXs,
-              // Mesma razão do `ItineraryChip`: em 320px o botão é o mais
-              // largo da linha, e sem o `Flexible` ele estoura o `Wrap`.
+              Gap.hSm,
+              // Em 320px o botão é o mais largo da linha, e sem o
+              // `Flexible` ele estoura o `Wrap`.
               Flexible(
                 child: Text(
-                  'Ver previsão',
-                  style: context.text.labelSmall
-                      ?.copyWith(color: accent, fontWeight: FontWeight.w700),
+                  'Previsão',
+                  style: context.text.labelSmall?.copyWith(color: muted),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              Icon(Icons.chevron_right_rounded, size: 15, color: accent),
+              Icon(Icons.chevron_right, size: 14, color: muted),
             ],
           ),
         ),

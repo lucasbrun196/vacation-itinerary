@@ -45,6 +45,7 @@ class _TripGate extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final tripAsync = ref.watch(tripProvider);
     final uid = ref.watch(currentUidProvider);
+    final user = ref.watch(currentUserProvider).valueOrNull;
 
     return tripAsync.when(
       loading: () => const Scaffold(
@@ -98,6 +99,8 @@ class _TripGate extends ConsumerWidget {
               context.go(Routes.tripSection(trip.id, AppDestination.values[i])),
           tripName: trip.name,
           onExit: () => context.go(Routes.trips),
+          userInitials: user?.initials,
+          onAccount: () => context.push(Routes.account),
           child: child,
         );
       },

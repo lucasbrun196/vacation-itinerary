@@ -7,13 +7,13 @@
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="description" content="O roteiro, os gastos e as fotos da viagem em um lugar só.">
-  <meta name="theme-color" content="#FF6B6B">
+  <meta name="theme-color" content="#FFF9F6">
 
   <!-- PWA / iOS: permite instalar na tela inicial, que é a estratégia para iPhone -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Viagem">
+  <meta name="apple-mobile-web-app-title" content="WeGoTravel">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <link rel="icon" type="image/png" href="favicon.png"/>
@@ -23,13 +23,15 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 
-  <title>Viagem</title>
+  <title>WeGoTravel</title>
 
   <style>
-    html, body { margin: 0; padding: 0; height: 100%; background: #FDF8F3; }
+    html, body { margin: 0; padding: 0; height: 100%; background: #FFF9F6; }
 
     /* Splash: o bundle do Flutter Web leva alguns segundos no primeiro
-       acesso. Sem isto o usuário encara uma tela branca. */
+       acesso. Sem isto o usuário encara uma tela branca. Repete a splash
+       do app — o nome "WeGoTravel" e uma barra fina —, para a troca não
+       aparecer. */
     #splash {
       position: fixed;
       inset: 0;
@@ -37,34 +39,29 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 22px;
-      background: linear-gradient(135deg, #FF6B6B 0%, #FFA45B 100%);
+      gap: 16px;
+      background: #FFF9F6;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      color: #fff;
+      color: #2B201E;
       z-index: 9999;
-      transition: opacity .45s ease, visibility .45s ease;
+      transition: opacity .2s ease, visibility .2s ease;
     }
     #splash.hidden { opacity: 0; visibility: hidden; }
 
-    .splash-mark {
-      font-size: 58px;
-      animation: float 2.6s ease-in-out infinite;
-    }
     .splash-title {
-      font-size: 22px;
+      font-size: 28px;
       font-weight: 700;
-      letter-spacing: -0.4px;
+      letter-spacing: -0.84px;
+      background: linear-gradient(90deg, #E5665E, #F29E5C);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
     }
-    .splash-sub {
-      font-size: 14px;
-      opacity: .8;
-      margin-top: -14px;
-    }
+    .splash-bar { border-radius: 2px; }
     .splash-bar {
-      width: 160px;
-      height: 4px;
-      border-radius: 999px;
-      background: rgba(255,255,255,.28);
+      width: 120px;
+      height: 2px;
+      background: #FAEEEA;
       overflow: hidden;
     }
     .splash-bar::after {
@@ -72,29 +69,42 @@
       display: block;
       width: 40%;
       height: 100%;
-      border-radius: 999px;
-      background: #fff;
+      background: linear-gradient(90deg, #E5665E, #F29E5C);
       animation: slide 1.3s ease-in-out infinite;
     }
 
-    @keyframes float {
-      0%, 100% { transform: translateY(0) rotate(-4deg); }
-      50%      { transform: translateY(-14px) rotate(4deg); }
-    }
     @keyframes slide {
       0%   { transform: translateX(-100%); }
       100% { transform: translateX(350%); }
     }
     @media (prefers-reduced-motion: reduce) {
-      .splash-mark, .splash-bar::after { animation: none; }
+      .splash-bar::after { animation: none; }
     }
+    /* Tema escuro: a classe é posta pelo script logo abaixo, antes de a
+       página pintar, para a splash já nascer na cor que o app vai usar. */
+    html.dark, html.dark body, html.dark #splash { background: #171211; }
+    html.dark #splash { color: #F6ECE9; }
+    html.dark .splash-bar { background: #2E2422; }
+    html.dark .splash-bar::after { background: linear-gradient(90deg, #F2857D, #F29E5C); }
   </style>
+  <script>
+    // Mesma regra do app: o tema salvo no aparelho (o shared_preferences
+    // grava em `flutter.theme_mode`, como JSON) ou, sem escolha, o do
+    // sistema.
+    (function () {
+      var saved = null;
+      try { saved = JSON.parse(localStorage.getItem('flutter.theme_mode')); } catch (e) {}
+      var dark = saved === 'dark' ||
+        (saved !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      if (dark) document.documentElement.classList.add('dark');
+      var meta = document.querySelector('meta[name="theme-color"]');
+      if (dark && meta) meta.setAttribute('content', '#171211');
+    })();
+  </script>
 </head>
 <body>
   <div id="splash">
-    <div class="splash-mark">🏝️</div>
-    <div class="splash-title">Preparando a viagem</div>
-    <div class="splash-sub">só um instante…</div>
+    <div class="splash-title">WeGoTravel</div>
     <div class="splash-bar"></div>
   </div>
 

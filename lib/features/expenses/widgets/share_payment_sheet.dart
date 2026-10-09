@@ -220,7 +220,7 @@ class _SharePaymentSheetState extends ConsumerState<SharePaymentSheet> {
 
                 Gap.vLg,
                 InkWell(
-                  borderRadius: Radii.brMd,
+                  borderRadius: Radii.brSm,
                   onTap: () async {
                     final picked = await showDatePicker(
                       context: context,
@@ -292,12 +292,13 @@ class _ReceiverBanner extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(Gap.md),
       decoration: BoxDecoration(
-        color: receiver.color.withValues(alpha: 0.10),
-        borderRadius: Radii.brMd,
+        color: context.colors.surfaceContainerLow,
+        border: Border.all(color: context.colors.outline),
+        borderRadius: Radii.brSm,
       ),
       child: Row(
         children: [
-          MemberAvatar(member: receiver, size: 38),
+          MemberAvatar(member: receiver),
           Gap.hMd,
           Expanded(
             child: Column(
@@ -335,17 +336,17 @@ class _ShareCheckTile extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: Gap.sm),
       child: InkWell(
-        borderRadius: Radii.brMd,
+        borderRadius: Radii.brSm,
         onTap: () => onChanged(!checked),
         child: AnimatedContainer(
           duration: Motion.fast,
           padding: const EdgeInsets.symmetric(horizontal: Gap.md, vertical: Gap.sm),
           decoration: BoxDecoration(
-            color: checked ? AppColors.success.withValues(alpha: 0.08) : Colors.transparent,
-            borderRadius: Radii.brMd,
+            color: context.colors.surface,
+            borderRadius: Radii.brSm,
             border: Border.all(
-              color: checked ? AppColors.success : context.colors.outline,
-              width: checked ? 1.6 : 1.2,
+              color: checked ? context.colors.onSurface : context.colors.outline,
+              width: checked ? 1.5 : 1,
             ),
           ),
           child: Row(
@@ -353,8 +354,8 @@ class _ShareCheckTile extends StatelessWidget {
               Checkbox(
                 value: checked,
                 onChanged: (v) => onChanged(v ?? false),
-                activeColor: AppColors.success,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                activeColor: context.success,
+
               ),
               Expanded(
                 child: Column(
@@ -382,7 +383,7 @@ class _ShareCheckTile extends StatelessWidget {
               ),
               Text(
                 Money.format(share.remainingCents),
-                style: AppTypography.money(size: 16, color: context.colors.onSurface),
+                style: AppTypography.money(size: 14, color: context.colors.onSurface),
               ),
             ],
           ),
@@ -404,7 +405,7 @@ class _PaidShareTile extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: Gap.sm),
       child: Row(
         children: [
-          const Icon(Icons.check_circle_rounded, color: AppColors.success, size: 20),
+          Icon(Icons.check, color: context.success, size: 18),
           Gap.hMd,
           Expanded(
             child: Column(
@@ -431,7 +432,7 @@ class _PaidShareTile extends StatelessWidget {
                       Text(
                         'adiantado',
                         style: context.text.labelSmall?.copyWith(
-                          color: AppColors.success,
+                          color: context.success,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -463,18 +464,19 @@ class _AdvanceBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(Gap.md),
       decoration: BoxDecoration(
-        color: AppColors.turquoise.withValues(alpha: 0.10),
-        borderRadius: Radii.brMd,
+        color: context.colors.surfaceContainerLow,
+        border: Border.all(color: context.colors.outline),
+        borderRadius: Radii.brSm,
       ),
       child: Row(
         children: [
-          const Icon(Icons.fast_forward_rounded, color: AppColors.turquoise, size: 18),
+          Icon(Icons.fast_forward_outlined, color: context.colors.onSurfaceVariant, size: 16),
           Gap.hMd,
           Expanded(
             child: Text(
               'Adiantamento: $count parcelas em um pagamento só. '
               'O comprovante fica ligado a todas elas.',
-              style: context.text.bodySmall?.copyWith(color: AppColors.deepSea),
+              style: context.text.bodySmall,
             ),
           ),
         ],

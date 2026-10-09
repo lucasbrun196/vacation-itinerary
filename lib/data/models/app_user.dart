@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../../core/utils/initials.dart';
+
 /// Perfil público de uma conta, em `users/{uid}`.
 ///
 /// Existe por um motivo prático: o SDK cliente do Firebase Auth não
@@ -23,6 +25,9 @@ class AppUser {
   final DateTime? lastSeenAt;
 
   String get shortName => displayName.trim().split(RegExp(r'\s+')).first;
+
+  /// O que o avatar mostra. O `emoji` continua salvo, mas não aparece mais.
+  String get initials => initialsOf(displayName.isEmpty ? nameFromEmail(email) : displayName);
 
   /// E-mails são comparados sempre em minúsculas, para "Joao@x.com" e
   /// "joao@x.com" acharem a mesma pessoa.

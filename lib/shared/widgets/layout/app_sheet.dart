@@ -172,10 +172,10 @@ class SheetActions extends StatelessWidget {
       ),
       onPressed: isLoading ? null : onPrimary,
       child: isLoading
-          ? const SizedBox(
+          ? SizedBox(
               width: 20,
               height: 20,
-              child: CircularProgressIndicator(strokeWidth: 2.4, color: Colors.white),
+              child: CircularProgressIndicator(strokeWidth: 2, color: context.colors.onPrimary),
             )
           : Text(
               primaryLabel,

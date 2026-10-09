@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/providers.dart';
@@ -171,13 +170,13 @@ class _AddMemberSheetState extends ConsumerState<AddMemberSheet> {
                   if (_found != null) ...[
                     Gap.vLg,
                     _Banner(
-                      color: AppColors.success,
-                      icon: Icons.person_add_alt_1_rounded,
+                      color: context.success,
+                      icon: Icons.person_add_alt_1_outlined,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text('${_found!.emoji}  ${_found!.displayName}',
+                          Text(_found!.displayName,
                               style: context.text.titleSmall),
                           Text(_found!.email, style: context.text.bodySmall),
                         ],
@@ -220,18 +219,18 @@ class _Banner extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(Gap.md),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.10),
-        borderRadius: Radii.brMd,
-        border: Border.all(color: color.withValues(alpha: 0.35)),
+        color: color.withValues(alpha: 0.06),
+        borderRadius: Radii.brSm,
+        border: Border.all(color: color.withValues(alpha: 0.4)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: color, size: 18),
+          Icon(icon, color: color, size: 16),
           Gap.hMd,
           Expanded(child: child),
         ],
       ),
-    ).animate().fadeIn(duration: Motion.fast).slideY(begin: -0.1);
+    );
   }
 }

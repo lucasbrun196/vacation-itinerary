@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/providers.dart';
@@ -20,7 +19,7 @@ Future<void> showBillForm(BuildContext context, {Bill? bill}) => showAppSheet(
       context: context,
       title: bill == null ? 'Nova conta' : 'Editar conta',
       subtitle: bill == null
-          ? 'Cadastre um gasto da viagem e divida entre a turma'
+          ? 'Um gasto da viagem, dividido entre os participantes'
           : bill.title,
       builder: (_) => BillFormSheet(bill: bill),
     );
@@ -344,39 +343,30 @@ class _TypeSelector extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(bottom: Gap.sm),
             child: InkWell(
-              borderRadius: Radii.brMd,
+              borderRadius: Radii.brSm,
               onTap: () => onChanged(type),
               child: AnimatedContainer(
                 duration: Motion.fast,
-                padding: const EdgeInsets.all(Gap.md),
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: Gap.md, vertical: 10),
                 decoration: BoxDecoration(
-                  color: value == type
-                      ? AppColors.coral.withValues(alpha: 0.08)
-                      : Colors.transparent,
-                  borderRadius: Radii.brMd,
+                  color: context.colors.surface,
+                  borderRadius: Radii.brSm,
                   border: Border.all(
-                    color: value == type ? AppColors.coral : context.colors.outline,
-                    width: value == type ? 1.8 : 1.2,
+                    color: value == type ? context.colors.onSurface : context.colors.outline,
+                    width: value == type ? 1.5 : 1,
                   ),
                 ),
-                child: Row(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(
-                      type.icon,
-                      color: value == type ? AppColors.coral : context.colors.onSurfaceVariant,
-                    ),
-                    Gap.hMd,
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(type.label, style: context.text.titleSmall),
-                          Text(type.description, style: context.text.bodySmall),
-                        ],
+                    Text(
+                      type.label,
+                      style: context.text.bodyMedium?.copyWith(
+                        fontWeight: value == type ? FontWeight.w600 : FontWeight.w500,
                       ),
                     ),
-                    if (value == type)
-                      const Icon(Icons.check_circle_rounded, color: AppColors.coral, size: 20),
+                    Text(type.description, style: context.text.bodySmall),
                   ],
                 ),
               ),
@@ -400,41 +390,10 @@ class _CategoryPicker extends StatelessWidget {
       runSpacing: Gap.sm,
       children: [
         for (final category in BillCategory.values)
-          InkWell(
-            borderRadius: Radii.brPill,
-            onTap: () => onChanged(category),
-            child: AnimatedContainer(
-              duration: Motion.fast,
-              padding: const EdgeInsets.symmetric(horizontal: Gap.md, vertical: Gap.sm),
-              decoration: BoxDecoration(
-                color: value == category
-                    ? category.color.withValues(alpha: 0.16)
-                    : context.colors.surfaceContainerHigh,
-                borderRadius: Radii.brPill,
-                border: Border.all(
-                  color: value == category ? category.color : Colors.transparent,
-                  width: 1.4,
-                ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    category.icon,
-                    size: 15,
-                    color: value == category ? category.color : context.colors.onSurfaceVariant,
-                  ),
-                  Gap.hXs,
-                  Text(
-                    category.label,
-                    style: context.text.labelMedium?.copyWith(
-                      color: value == category ? category.color : context.colors.onSurfaceVariant,
-                      fontWeight: value == category ? FontWeight.w700 : FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+          ChoiceChip(
+            label: Text(category.label),
+            selected: value == category,
+            onSelected: (_) => onChanged(category),
           ),
       ],
     );
@@ -470,7 +429,7 @@ class _InstallmentSection extends StatelessWidget {
             Expanded(child: Text('Parcelamento', style: context.text.labelLarge)),
             Text(
               count == 1 ? 'À vista' : '${count}x',
-              style: context.text.labelLarge?.copyWith(color: AppColors.coral),
+              style: AppTypography.mono(size: 13, color: context.colors.onSurface),
             ),
           ],
         ),
@@ -492,20 +451,20 @@ class _InstallmentSection extends StatelessWidget {
           ),
           Gap.vLg,
           InkWell(
-            borderRadius: Radii.brMd,
+            borderRadius: Radii.brSm,
             onTap: onPickDate,
             child: InputDecorator(
               decoration: const InputDecoration(
                 labelText: 'Vencimento da 1ª parcela',
-                prefixIcon: Icon(Icons.event_rounded, size: 20),
+                prefixIcon: Icon(Icons.event_outlined, size: 20),
               ),
               child: Text(
                 firstDueDate == null
                     ? 'Escolher data'
-                    : Fmt.dateWithYear(firstDueDate!),
+                    : Fmt.dateShortWithYear(firstDueDate!),
                 style: firstDueDate == null
                     ? context.text.bodyMedium?.copyWith(color: AppColors.inkFaint)
-                    : context.text.bodyMedium,
+                    : AppTypography.mono(size: 14, color: context.colors.onSurface),
               ),
             ),
           ),
@@ -531,38 +490,26 @@ class _ComputedInstallment extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: Gap.lg, vertical: Gap.md),
+      padding: const EdgeInsets.symmetric(horizontal: Gap.md, vertical: 10),
       decoration: BoxDecoration(
-        color: context.colors.surfaceContainerHigh,
-        borderRadius: Radii.brMd,
+        color: context.colors.surfaceContainerLow,
+        borderRadius: Radii.brSm,
         border: Border.all(color: context.colors.outline),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.functions_rounded, size: 18, color: context.colors.onSurfaceVariant),
-          Gap.hMd,
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text('Valor de cada parcela', style: context.text.labelSmall),
-                AnimatedSwitcher(
-                  duration: Motion.fast,
-                  child: Text(
-                    cents <= 0 ? '—' : Money.format(cents),
-                    key: ValueKey(cents),
-                    style: AppTypography.money(size: 20, color: context.colors.onSurface),
-                  ),
-                ),
-                if (uneven && cents > 0)
-                  Text(
-                    'as últimas ficam 1 centavo menores, para o total fechar exato',
-                    style: context.text.labelSmall,
-                  ),
-              ],
-            ),
+          Text('Valor de cada parcela', style: context.text.labelSmall),
+          Text(
+            cents <= 0 ? '—' : Money.format(cents),
+            style: AppTypography.money(size: 18, color: context.colors.onSurface),
           ),
+          if (uneven && cents > 0)
+            Text(
+              'as últimas ficam 1 centavo menores, para o total fechar exato',
+              style: context.text.labelSmall,
+            ),
         ],
       ),
     );
@@ -595,8 +542,6 @@ class _PerPersonHint extends StatelessWidget {
     if (participantCount == 0) {
       content = const _Line(
         key: ValueKey('sem-gente'),
-        icon: Icons.group_add_outlined,
-        color: AppColors.inkFaint,
         text: 'Escolha os participantes para ver o valor de cada um',
       );
     } else if (cents <= 0) {
@@ -609,8 +554,6 @@ class _PerPersonHint extends StatelessWidget {
 
       content = _Line(
         key: ValueKey('$cents-$participantCount-$perMonth'),
-        icon: Icons.groups_rounded,
-        color: AppColors.turquoise,
         text: '${Money.format(parts.first)} para cada '
             '${participantCount == 1 ? "pessoa" : "uma das $participantCount pessoas"}'
             '${perMonth ? ", por mês" : ""}'
@@ -625,49 +568,28 @@ class _PerPersonHint extends StatelessWidget {
         duration: Motion.fast,
         curve: Motion.enter,
         alignment: Alignment.topCenter,
-        child: AnimatedSwitcher(duration: Motion.fast, child: content),
+        child: content,
       ),
     );
   }
 }
 
 class _Line extends StatelessWidget {
-  const _Line({
-    super.key,
-    required this.icon,
-    required this.color,
-    required this.text,
-    this.emphasis = false,
-  });
+  const _Line({super.key, required this.text, this.emphasis = false});
 
-  final IconData icon;
-  final Color color;
   final String text;
   final bool emphasis;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return SizedBox(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: Gap.md, vertical: Gap.sm),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: emphasis ? 0.10 : 0.06),
-        borderRadius: Radii.brSm,
-      ),
-      child: Row(
-        children: [
-          Icon(icon, size: 15, color: color),
-          Gap.hSm,
-          Expanded(
-            child: Text(
-              text,
-              style: context.text.labelMedium?.copyWith(
-                color: emphasis ? AppColors.deepSea : AppColors.inkFaint,
-                fontWeight: emphasis ? FontWeight.w700 : FontWeight.w500,
-              ),
-            ),
-          ),
-        ],
+      child: Text(
+        text,
+        style: context.text.bodySmall?.copyWith(
+          color: emphasis ? context.colors.onSurface : null,
+          fontWeight: emphasis ? FontWeight.w500 : null,
+        ),
       ),
     );
   }
@@ -679,26 +601,17 @@ class _AccumulatingHint extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(Gap.lg),
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: Gap.md, vertical: 10),
       decoration: BoxDecoration(
-        color: AppColors.sky.withValues(alpha: 0.08),
-        borderRadius: Radii.brMd,
-        border: Border.all(color: AppColors.sky.withValues(alpha: 0.25)),
+        color: context.colors.surfaceContainerLow,
+        borderRadius: Radii.brSm,
+        border: Border.all(color: context.colors.outline),
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Icon(Icons.lightbulb_outline_rounded, color: AppColors.sky, size: 20),
-          Gap.hMd,
-          Expanded(
-            child: Text(
-              'Sem valor por enquanto. Você vai lançando cada gasto '
-              '(cada vez que abastecer, por exemplo) e no final fecha a '
-              'conta para dividir o total.',
-              style: context.text.bodySmall?.copyWith(color: AppColors.deepSea),
-            ),
-          ),
-        ],
+      child: Text(
+        'Sem valor por enquanto. Lance cada gasto (cada vez que abastecer, por '
+        'exemplo) e feche a conta no final para dividir o total.',
+        style: context.text.bodySmall,
       ),
     );
   }
@@ -715,6 +628,9 @@ class _MemberSelector extends StatelessWidget {
   final List<Member> members;
   final Set<String> selected;
   final ValueChanged<String> onToggle;
+
+  /// Mantido por compatibilidade: a marca de selecionado é a mesma nos
+  /// dois casos — a borda escura do chip.
   final bool multi;
 
   @override
@@ -731,13 +647,6 @@ class _MemberSelector extends StatelessWidget {
             member: member,
             selected: selected.contains(member.id),
             onTap: () => onToggle(member.id),
-            trailing: selected.contains(member.id)
-                ? Icon(
-                    multi ? Icons.check_rounded : Icons.radio_button_checked_rounded,
-                    size: 15,
-                    color: member.color,
-                  )
-                : null,
           ),
       ],
     );
@@ -782,30 +691,29 @@ class _SplitPreview extends ConsumerWidget {
             Expanded(child: Text('Total cobrado', style: context.text.bodyMedium)),
             Text(
               Money.format(total),
-              style: AppTypography.money(size: 16, color: context.colors.onSurface),
+              style: AppTypography.money(size: 15, color: context.colors.onSurface),
             ),
           ],
         ),
         Gap.vMd,
-        Divider(color: context.colors.outline),
+        const Divider(),
         Gap.vMd,
         Text(
           bill.isInstallment
               ? 'Cada um paga por mês, em ${bill.installmentCount}x'
               : 'Cada um paga',
-          style: context.text.labelMedium,
+          style: context.text.labelSmall,
         ),
         Gap.vSm,
         for (final share in firstInstallment)
           Padding(
-            padding: const EdgeInsets.only(bottom: Gap.xs),
+            padding: const EdgeInsets.only(bottom: Gap.sm),
             child: Row(
               children: [
-                Text(
-                  membersById[share.memberId]?.emoji ?? '🙂',
-                  style: const TextStyle(fontSize: 15),
-                ),
-                Gap.hSm,
+                if (membersById[share.memberId] case final member?) ...[
+                  MemberAvatar(member: member, size: 20),
+                  Gap.hSm,
+                ],
                 Expanded(
                   child: Text(
                     membersById[share.memberId]?.shortName ?? share.memberId,
@@ -817,12 +725,12 @@ class _SplitPreview extends ConsumerWidget {
                     padding: const EdgeInsets.only(right: Gap.sm),
                     child: Text(
                       'bancou',
-                      style: context.text.labelSmall?.copyWith(color: AppColors.success),
+                      style: context.text.labelSmall?.copyWith(color: context.success),
                     ),
                   ),
                 Text(
                   Money.format(share.amountCents),
-                  style: AppTypography.money(size: 15, color: context.colors.onSurface),
+                  style: AppTypography.money(size: 14, color: context.colors.onSurface),
                 ),
               ],
             ),
@@ -842,10 +750,11 @@ class _PreviewBox extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(Gap.lg),
       decoration: BoxDecoration(
-        color: context.colors.surfaceContainerHigh,
-        borderRadius: Radii.brMd,
+        color: context.colors.surfaceContainerLow,
+        borderRadius: Radii.brSm,
+        border: Border.all(color: context.colors.outline),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: children),
-    ).animate().fadeIn(duration: Motion.fast);
+    );
   }
 }

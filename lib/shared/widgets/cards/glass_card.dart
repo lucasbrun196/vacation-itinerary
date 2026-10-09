@@ -5,8 +5,12 @@ import '../../../core/extensions/context_ext.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 
-/// Card base do app: cantos generosos, borda sutil, sombra suave e
-/// reação ao toque/hover quando é interativo.
+/// Cartão base do app: superfície, borda de 1px, cantos de 16px.
+///
+/// Em repouso tem uma sombra quase imperceptível. Quando é interativo e o
+/// mouse passa por cima, ele sobe 3px, ganha um halo coral e a borda se
+/// tinge de coral; ao ser pressionado, encolhe 1%. Os três juntos dizem
+/// "isto é clicável" sem precisar de ícone.
 class GlassCard extends StatefulWidget {
   const GlassCard({
     super.key,
@@ -14,6 +18,7 @@ class GlassCard extends StatefulWidget {
     this.onTap,
     this.padding = const EdgeInsets.all(Gap.lg),
     this.color,
+    this.borderColor,
     this.borderRadius = Radii.brLg,
     this.accent,
     this.showShadow = true,
@@ -23,11 +28,13 @@ class GlassCard extends StatefulWidget {
   final VoidCallback? onTap;
   final EdgeInsetsGeometry padding;
   final Color? color;
+  final Color? borderColor;
   final BorderRadius borderRadius;
 
-  /// Quando informado, tinge a sombra e a borda — usado para dar
-  /// identidade de categoria aos cards.
+  /// Mantido por compatibilidade: a cor de categoria não tinge o cartão.
   final Color? accent;
+
+  /// Desliga a sombra do hover — para cartões dentro de outros.
   final bool showShadow;
 
   @override
@@ -41,35 +48,34 @@ class _GlassCardState extends State<GlassCard> {
   @override
   Widget build(BuildContext context) {
     final interactive = widget.onTap != null;
-    final accent = widget.accent;
-    final highlighted = _hovered && interactive;
-    final lift = _pressed ? 0.98 : (highlighted ? 1.012 : 1.0);
+    final lifted = interactive && _hovered && !context.reduceMotion;
+    final border = widget.borderColor ?? context.colors.outline;
 
     Widget content = AnimatedContainer(
       duration: Motion.fast,
       curve: Motion.enter,
+      transform: Matrix4.translationValues(0, lifted ? -3 : 0, 0),
       decoration: BoxDecoration(
         color: widget.color ?? context.colors.surface,
         borderRadius: widget.borderRadius,
         border: Border.all(
-          color: highlighted
-              ? (accent ?? AppColors.coral).withValues(alpha: 0.45)
-              : context.colors.outline,
-          width: 1.2,
+          color: lifted ? context.colors.primary.withValues(alpha: 0.45) : border,
         ),
         boxShadow: !widget.showShadow
-            ? null
-            : highlighted
-                ? AppColors.glow(accent ?? AppColors.coral, opacity: 0.18, blur: 28, y: 12)
-                : AppColors.softShadow,
+            ? const []
+            : lifted
+                ? AppColors.lift(dark: context.isDark)
+                : context.isDark
+                    ? const []
+                    : AppColors.softShadow,
       ),
-      // O respingo do toque é pintado pelo `Material`, que é filho do
-      // container: assim ele aparece **por cima** do fundo do card. Com o
-      // padding no container, o respingo parava na borda do conteúdo.
+      // O `Material` é filho do container para o realce do toque ficar
+      // **por cima** do fundo do cartão.
       child: interactive
           ? Material(
               type: MaterialType.transparency,
               borderRadius: widget.borderRadius,
+              clipBehavior: Clip.antiAlias,
               child: InkWell(
                 borderRadius: widget.borderRadius,
                 onTap: widget.onTap,
@@ -80,20 +86,20 @@ class _GlassCardState extends State<GlassCard> {
           : Padding(padding: widget.padding, child: widget.child),
     );
 
+    if (!interactive) return content;
+
     content = AnimatedScale(
-      scale: context.reduceMotion ? 1.0 : lift,
-      duration: Motion.fast,
+      scale: _pressed && !context.reduceMotion ? 0.99 : 1,
+      duration: Motion.instant,
       curve: Motion.enter,
       child: content,
     );
-
-    if (!interactive) return content;
 
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       // Só mouse de verdade. O Chrome de celular emite eventos de mouse
       // sintéticos ao tocar: o `onEnter` disparava, o `onExit` nunca vinha,
-      // e o card ficava destacado para sempre.
+      // e o cartão ficava erguido para sempre.
       onEnter: (e) {
         if (e.kind == PointerDeviceKind.mouse) setState(() => _hovered = true);
       },

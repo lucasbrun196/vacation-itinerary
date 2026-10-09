@@ -5,6 +5,7 @@ import '../../../app/providers.dart';
 import '../../../core/extensions/context_ext.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/theme/app_typography.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/utils/money.dart';
 import '../../../data/models/bill.dart';
@@ -24,7 +25,7 @@ Future<void> showItineraryForm(
       context: context,
       title: item == null ? 'Nova atividade' : 'Editar atividade',
       subtitle: item == null
-          ? 'O que a turma vai fazer, onde e como chega lá'
+          ? 'O que, onde, quando e como chegar'
           : item.title,
       builder: (_) => ItineraryFormSheet(item: item, suggestedDate: suggestedDate),
     );
@@ -133,7 +134,7 @@ class _ItineraryFormSheetState extends ConsumerState<ItineraryFormSheet> {
           address: _trimmed(_addressController),
         );
 
-  /// Soma das contas escolhidas, ignorando as que sumiram de Gastos.
+  /// Soma das contas escolhidas, ignorando as que sumiram de Contas.
   int _selectedCents(List<Bill> bills) {
     final byId = {for (final b in bills) b.id: b};
     return _billIds.fold<int>(
@@ -275,7 +276,7 @@ class _ItineraryFormSheetState extends ConsumerState<ItineraryFormSheet> {
                   Text('Quando', style: context.text.labelLarge),
                   Gap.vMd,
                   InkWell(
-                    borderRadius: Radii.brMd,
+                    borderRadius: Radii.brSm,
                     onTap: _pickDate,
                     child: InputDecorator(
                       decoration: const InputDecoration(
@@ -450,7 +451,7 @@ class _MapField extends StatelessWidget {
         padding: const EdgeInsets.all(Gap.md),
         decoration: BoxDecoration(
           color: context.colors.surfaceContainerHigh,
-          borderRadius: Radii.brMd,
+          borderRadius: Radii.brSm,
         ),
         child: Row(
           children: [
@@ -479,9 +480,9 @@ class _MapField extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.sm, Gap.sm),
       decoration: BoxDecoration(
-        color: AppColors.sky.withValues(alpha: 0.12),
-        borderRadius: Radii.brMd,
-        border: Border.all(color: AppColors.sky, width: 1.4),
+        color: context.colors.surface,
+        borderRadius: Radii.brSm,
+        border: Border.all(color: context.colors.outline),
       ),
       child: _PickedPlaceRow(
         placeName: placeName,
@@ -538,7 +539,7 @@ class _PickedPlaceRow extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.place_rounded, size: 18, color: AppColors.sky),
+              Icon(Icons.place_outlined, size: 18, color: context.colors.onSurfaceVariant),
               Gap.hMd,
               Expanded(child: label),
             ],
@@ -553,7 +554,7 @@ class _PickedPlaceRow extends StatelessWidget {
 
     return Row(
       children: [
-        const Icon(Icons.place_rounded, size: 18, color: AppColors.sky),
+        Icon(Icons.place_outlined, size: 18, color: context.colors.onSurfaceVariant),
         Gap.hMd,
         Expanded(child: label),
         swap,
@@ -576,42 +577,10 @@ class _CategoryPicker extends StatelessWidget {
       runSpacing: Gap.sm,
       children: [
         for (final category in ItineraryCategory.values)
-          InkWell(
-            borderRadius: Radii.brPill,
-            onTap: () => onChanged(category),
-            child: AnimatedContainer(
-              duration: Motion.fast,
-              padding: const EdgeInsets.symmetric(horizontal: Gap.md, vertical: Gap.sm),
-              decoration: BoxDecoration(
-                color: value == category
-                    ? category.color.withValues(alpha: 0.16)
-                    : context.colors.surfaceContainerHigh,
-                borderRadius: Radii.brPill,
-                border: Border.all(
-                  color: value == category ? category.color : Colors.transparent,
-                  width: 1.4,
-                ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    category.icon,
-                    size: 15,
-                    color: value == category ? category.color : context.colors.onSurfaceVariant,
-                  ),
-                  Gap.hXs,
-                  Text(
-                    category.label,
-                    style: context.text.labelMedium?.copyWith(
-                      color:
-                          value == category ? category.color : context.colors.onSurfaceVariant,
-                      fontWeight: value == category ? FontWeight.w700 : FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+          ChoiceChip(
+            label: Text(category.label),
+            selected: value == category,
+            onSelected: (_) => onChanged(category),
           ),
       ],
     );
@@ -631,41 +600,10 @@ class _TransportPicker extends StatelessWidget {
       runSpacing: Gap.sm,
       children: [
         for (final mode in TransportMode.values)
-          InkWell(
-            borderRadius: Radii.brPill,
-            onTap: () => onChanged(mode),
-            child: AnimatedContainer(
-              duration: Motion.fast,
-              padding: const EdgeInsets.symmetric(horizontal: Gap.md, vertical: Gap.sm),
-              decoration: BoxDecoration(
-                color: value == mode
-                    ? AppColors.sky.withValues(alpha: 0.16)
-                    : context.colors.surfaceContainerHigh,
-                borderRadius: Radii.brPill,
-                border: Border.all(
-                  color: value == mode ? AppColors.sky : Colors.transparent,
-                  width: 1.4,
-                ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    mode.icon,
-                    size: 15,
-                    color: value == mode ? AppColors.sky : context.colors.onSurfaceVariant,
-                  ),
-                  Gap.hXs,
-                  Text(
-                    mode.label,
-                    style: context.text.labelMedium?.copyWith(
-                      color: value == mode ? AppColors.sky : context.colors.onSurfaceVariant,
-                      fontWeight: value == mode ? FontWeight.w700 : FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+          ChoiceChip(
+            label: Text(mode.label),
+            selected: value == mode,
+            onSelected: (_) => onChanged(mode),
           ),
       ],
     );
@@ -697,7 +635,7 @@ class _TimeRow extends StatelessWidget {
         children: [
           OutlinedButton.icon(
             onPressed: onPickStart,
-            icon: const Icon(Icons.schedule_rounded, size: 18),
+            icon: const Icon(Icons.schedule, size: 18),
             label: const Text('Definir horário'),
           ),
           Gap.vSm,
@@ -711,19 +649,22 @@ class _TimeRow extends StatelessWidget {
     }
 
     final start = InkWell(
-      borderRadius: Radii.brMd,
+      borderRadius: Radii.brSm,
       onTap: onPickStart,
       child: InputDecorator(
         decoration: const InputDecoration(
           labelText: 'Começa',
-          prefixIcon: Icon(Icons.schedule_rounded, size: 20),
+          prefixIcon: Icon(Icons.schedule, size: 20),
         ),
-        child: Text(startTime!.format(context), style: context.text.bodyMedium),
+        child: Text(
+          startTime!.format(context),
+          style: AppTypography.mono(size: 14, color: context.colors.onSurface),
+        ),
       ),
     );
 
     final end = InkWell(
-      borderRadius: Radii.brMd,
+      borderRadius: Radii.brSm,
       onTap: onPickEnd,
       child: InputDecorator(
         decoration: const InputDecoration(labelText: 'Termina'),
@@ -789,7 +730,7 @@ class _BillPicker extends StatelessWidget {
         padding: const EdgeInsets.all(Gap.md),
         decoration: BoxDecoration(
           color: context.colors.surfaceContainerHigh,
-          borderRadius: Radii.brMd,
+          borderRadius: Radii.brSm,
         ),
         child: Row(
           children: [
@@ -797,7 +738,7 @@ class _BillPicker extends StatelessWidget {
             Gap.hMd,
             Expanded(
               child: Text(
-                'Nenhuma conta cadastrada ainda. Crie em Gastos e volte aqui para ligar.',
+                'Nenhuma conta cadastrada ainda. Crie em Contas e volte aqui para ligar.',
                 style: context.text.bodySmall,
               ),
             ),
@@ -818,49 +759,17 @@ class _BillPicker extends StatelessWidget {
 
   /// Cada conta é um botão de liga/desliga: dá para marcar quantas forem.
   Widget _selectable(BuildContext context, Bill bill, {required bool selected}) {
-    return InkWell(
-      borderRadius: Radii.brPill,
-      onTap: () => onToggle(bill.id),
-      child: AnimatedContainer(
-        duration: Motion.fast,
-        padding: const EdgeInsets.symmetric(horizontal: Gap.md, vertical: Gap.sm),
-        decoration: BoxDecoration(
-          color: selected
-              ? bill.category.color.withValues(alpha: 0.16)
-              : context.colors.surfaceContainerHigh,
-          borderRadius: Radii.brPill,
-          border: Border.all(
-            color: selected ? bill.category.color : Colors.transparent,
-            width: 1.4,
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(bill.category.icon, size: 15, color: bill.category.color),
-            Gap.hXs,
-            // Idem `_Chip` do card do roteiro: dentro de um `Wrap` o
-            // título da conta precisa poder encolher.
-            Flexible(
-              child: Text(
-                bill.title,
-                style: context.text.labelMedium?.copyWith(
-                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            Gap.hSm,
-            Text(
-              Money.formatCompact(bill.chargedTotalCents),
-              style: context.text.labelSmall,
-            ),
-            if (selected) ...[
-              Gap.hXs,
-              Icon(Icons.check_rounded, size: 14, color: bill.category.color),
-            ],
-          ],
+    return ChoiceChip(
+      selected: selected,
+      onSelected: (_) => onToggle(bill.id),
+      // Dentro de um `Wrap` o título da conta precisa poder encolher: sem
+      // o limite, um nome longo estoura a linha.
+      label: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 260),
+        child: Text(
+          '${bill.title} · ${Money.formatCompact(bill.chargedTotalCents)}',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
       ),
     );

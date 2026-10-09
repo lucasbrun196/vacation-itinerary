@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 
 import '../../../core/extensions/context_ext.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 
-/// Estado vazio com convite à ação — em vez de uma tela morta.
+/// Estado vazio: o ícone flutuando num círculo colorido, o que falta e o
+/// botão para resolver.
 class EmptyState extends StatelessWidget {
   const EmptyState({
     super.key,
@@ -14,7 +14,7 @@ class EmptyState extends StatelessWidget {
     required this.message,
     this.actionLabel,
     this.onAction,
-    this.accent = AppColors.turquoise,
+    this.accent,
   });
 
   final IconData icon;
@@ -22,10 +22,14 @@ class EmptyState extends StatelessWidget {
   final String message;
   final String? actionLabel;
   final VoidCallback? onAction;
-  final Color accent;
+
+  /// Cor do círculo; sem ela, o coral do destaque.
+  final Color? accent;
 
   @override
   Widget build(BuildContext context) {
+    final color = accent ?? AppColors.coral;
+
     return Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 380),
@@ -34,37 +38,84 @@ class EmptyState extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Container(
-                width: 96,
-                height: 96,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: accent.withValues(alpha: 0.12),
+              _Floating(
+                child: Container(
+                  width: 72,
+                  height: 72,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        color.withValues(alpha: context.isDark ? 0.30 : 0.14),
+                        color.withValues(alpha: context.isDark ? 0.15 : 0.26),
+                      ],
+                    ),
+                  ),
+                  child: Icon(icon, size: 32, color: color),
                 ),
-                child: Icon(icon, size: 44, color: accent),
-              )
-                  .animate(onPlay: (c) => c.repeat(reverse: true))
-                  .moveY(begin: 0, end: -8, duration: 2200.ms, curve: Curves.easeInOut),
-              Gap.vXl,
-              Text(title, style: context.text.headlineSmall, textAlign: TextAlign.center),
-              Gap.vSm,
-              Text(
-                message,
-                style: context.text.bodyMedium?.copyWith(color: context.colors.onSurfaceVariant),
-                textAlign: TextAlign.center,
               ),
+              Gap.vLg,
+              Text(title, style: context.text.titleLarge, textAlign: TextAlign.center),
+              Gap.vXs,
+              Text(message, style: context.text.bodySmall, textAlign: TextAlign.center),
               if (actionLabel != null && onAction != null) ...[
-                Gap.vXl,
+                Gap.vLg,
                 FilledButton.icon(
                   onPressed: onAction,
-                  icon: const Icon(Icons.add_rounded),
+                  icon: const Icon(Icons.add_rounded, size: 18),
                   label: Text(actionLabel!),
                 ),
               ],
             ],
           ),
         ),
-      ).animate().fadeIn(duration: Motion.slow).slideY(begin: 0.08, curve: Motion.enter),
+      ),
+    );
+  }
+}
+
+/// Sobe e desce 6px num ciclo de 3 segundos, para o vazio não parecer
+/// travado.
+class _Floating extends StatefulWidget {
+  const _Floating({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_Floating> createState() => _FloatingState();
+}
+
+class _FloatingState extends State<_Floating> with SingleTickerProviderStateMixin {
+  late final AnimationController _controller =
+      AnimationController(vsync: this, duration: const Duration(milliseconds: 1500));
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (context.reduceMotion) {
+      _controller.stop();
+    } else if (!_controller.isAnimating) {
+      _controller.repeat(reverse: true);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      child: widget.child,
+      builder: (context, child) => Transform.translate(
+        offset: Offset(0, -6 * Curves.easeInOut.transform(_controller.value)),
+        child: child,
+      ),
     );
   }
 }
@@ -87,19 +138,11 @@ class ErrorView extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Container(
-                width: 72,
-                height: 72,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppColors.danger.withValues(alpha: 0.12),
-                ),
-                child: const Icon(Icons.cloud_off_rounded, size: 34, color: AppColors.danger),
-              ),
-              Gap.vLg,
+              const Icon(Icons.cloud_off_outlined, size: 24, color: AppColors.danger),
+              Gap.vMd,
               Text(message, style: context.text.titleMedium, textAlign: TextAlign.center),
               if (details != null) ...[
-                Gap.vSm,
+                Gap.vXs,
                 Text(
                   details!,
                   style: context.text.bodySmall,
@@ -110,11 +153,7 @@ class ErrorView extends StatelessWidget {
               ],
               if (onRetry != null) ...[
                 Gap.vLg,
-                OutlinedButton.icon(
-                  onPressed: onRetry,
-                  icon: const Icon(Icons.refresh_rounded),
-                  label: const Text('Tentar de novo'),
-                ),
+                OutlinedButton(onPressed: onRetry, child: const Text('Tentar de novo')),
               ],
             ],
           ),

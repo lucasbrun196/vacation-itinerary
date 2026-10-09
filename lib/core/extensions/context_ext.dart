@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../responsive/breakpoints.dart';
+import '../theme/app_colors.dart';
 
 extension ContextX on BuildContext {
   ThemeData get theme => Theme.of(this);
@@ -10,6 +11,11 @@ extension ContextX on BuildContext {
   Size get screenSize => MediaQuery.sizeOf(this);
   EdgeInsets get safePadding => MediaQuery.paddingOf(this);
   bool get isDark => Theme.of(this).brightness == Brightness.dark;
+
+  /// Verde de "pago", "quitada", "a receber". Separado do destaque, que é
+  /// vermelho: com um só, "quitada" se leria como erro.
+  Color get success => isDark ? AppColors.darkSuccess : AppColors.success;
+  Color get successSoft => isDark ? AppColors.darkSuccessSoft : AppColors.successSoft;
 
   ScreenSize get breakpoint => Breakpoints.of(this);
   bool get isMobile => breakpoint == ScreenSize.mobile;
@@ -31,7 +37,10 @@ extension ContextX on BuildContext {
         SnackBar(
           content: Row(
             children: [
-              if (icon != null) ...[Icon(icon, color: Colors.white, size: 20), const SizedBox(width: 12)],
+              if (icon != null) ...[
+                Icon(icon, color: Theme.of(this).colorScheme.surface, size: 20),
+                const SizedBox(width: 12),
+              ],
               Expanded(child: Text(message)),
             ],
           ),

@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/material.dart' show ThemeMode, Brightness;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/models/app_user.dart';
@@ -55,6 +56,33 @@ final syncStatusServiceProvider = Provider((ref) => const SyncStatusService());
 final prefsProvider = Provider<LocalPrefsService>(
   (ref) => throw UnimplementedError('prefsProvider deve ser sobrescrito no main'),
 );
+
+/// Claro, escuro ou o do sistema. Começa no que ficou salvo no aparelho
+/// e grava cada troca — a escolha é de quem usa o aparelho, não da conta.
+final themeModeProvider = NotifierProvider<ThemeModeController, ThemeMode>(
+  ThemeModeController.new,
+);
+
+class ThemeModeController extends Notifier<ThemeMode> {
+  @override
+  ThemeMode build() {
+    final saved = ref.watch(prefsProvider).themeMode;
+    return ThemeMode.values.firstWhere(
+      (m) => m.name == saved,
+      orElse: () => ThemeMode.system,
+    );
+  }
+
+  void set(ThemeMode mode) {
+    state = mode;
+    ref.read(prefsProvider).setThemeMode(mode.name);
+  }
+
+  /// O botão sol/lua: alterna entre claro e escuro a partir do que está
+  /// **na tela**, inclusive quando o modo é o do sistema.
+  void toggle(Brightness current) =>
+      set(current == Brightness.dark ? ThemeMode.light : ThemeMode.dark);
+}
 
 // ---------------------------------------------------------------
 // Repositórios

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -19,7 +18,7 @@ import '../../../data/models/bill_share.dart';
 import '../../../data/models/enums.dart';
 import '../../../data/models/member.dart';
 import '../../../shared/widgets/cards/glass_card.dart';
-import '../../../shared/widgets/cards/gradient_card.dart';
+import '../../../shared/widgets/feedback/animated_progress_bar.dart';
 import '../../../shared/widgets/domain/member_avatar.dart';
 import '../../../shared/widgets/feedback/empty_state.dart';
 import '../../../shared/widgets/feedback/loading_shimmer.dart';
@@ -97,7 +96,7 @@ class _BillDetailBody extends ConsumerWidget {
                     ],
                     if (bill.notes != null && bill.notes!.isNotEmpty) ...[
                       Gap.vXl,
-                      const SectionHeader(title: 'Observações', icon: Icons.notes_rounded),
+                      const SectionHeader(title: 'Observações'),
                       GlassCard(child: Text(bill.notes!, style: context.text.bodyMedium)),
                     ],
                     const SizedBox(height: 120),
@@ -121,11 +120,11 @@ class _TopBar extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return Row(
       children: [
-        IconButton.filledTonal(
+        IconButton(
           onPressed: () => context.go(
             Routes.tripSection(ref.read(currentTripIdProvider), AppDestination.expenses),
           ),
-          icon: const Icon(Icons.arrow_back_rounded),
+          icon: const Icon(Icons.arrow_back),
           tooltip: 'Voltar',
         ),
         const Spacer(),
@@ -136,7 +135,7 @@ class _TopBar extends ConsumerWidget {
         ),
         IconButton(
           onPressed: () => _confirmDelete(context, ref),
-          icon: const Icon(Icons.delete_outline_rounded),
+          icon: const Icon(Icons.delete_outline),
           tooltip: 'Excluir conta',
         ),
       ],
@@ -216,77 +215,59 @@ class _BillHeader extends ConsumerWidget {
         : payerIds.isEmpty || membersById[payerIds.first] == null
             ? null
             : '${membersById[payerIds.first]!.shortName} bancou';
+    final muted = context.colors.onSurfaceVariant;
 
-    return GradientCard(
-      gradient: LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [bill.category.color, bill.category.color.withValues(alpha: 0.72)],
-      ),
+    return GlassCard(
+      padding: const EdgeInsets.all(Gap.xl),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Icon(bill.category.icon, color: Colors.white70, size: 18),
-              Gap.hSm,
-              Text(
-                bill.category.label,
-                style: context.text.labelMedium?.copyWith(color: Colors.white70),
-              ),
-            ],
+          Text(
+            [bill.category.label, ?payerLabel].join(' · '),
+            style: context.text.labelSmall,
           ),
-          Gap.vSm,
+          Gap.vXs,
           Text(
             bill.title,
-            style: (context.isMobile ? context.text.headlineMedium : context.text.displaySmall)
-                ?.copyWith(color: Colors.white),
+            style: context.isMobile ? context.text.headlineMedium : context.text.displaySmall,
           ),
           Gap.vLg,
           Text(
             Money.format(summary.totalCents),
-            style: AppTypography.money(size: context.isMobile ? 32 : 38, color: Colors.white),
+            style: AppTypography.money(
+              size: context.isMobile ? 28 : 32,
+              color: context.colors.onSurface,
+            ),
           ),
           if (bill.isInstallment)
             Text(
               '${bill.installmentCount}x de ${Money.format(bill.effectiveInstallmentCents)} '
               '· ${Money.format(bill.perPersonPerInstallmentCents)} por pessoa',
-              style: context.text.bodySmall?.copyWith(color: Colors.white70),
+              style: AppTypography.mono(size: 12, color: muted),
             ),
           if (summary.shareCount > 0) ...[
             Gap.vLg,
-            ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: LinearProgressIndicator(
-                value: summary.progress,
-                minHeight: 10,
-                backgroundColor: Colors.white24,
-                valueColor: const AlwaysStoppedAnimation(Colors.white),
-              ),
-            ),
+            AnimatedProgressBar(value: summary.progress, height: 8),
             Gap.vSm,
             Row(
               children: [
-                Flexible(
+                Expanded(
                   child: Text(
                     summary.isSettled
-                        ? 'Tudo quitado 🎉'
+                        ? 'Quitada'
                         : '${Money.format(summary.pendingCents)} em aberto',
-                    style: context.text.bodySmall?.copyWith(color: Colors.white),
+                    style: AppTypography.mono(
+                      size: 12,
+                      color: summary.isSettled ? context.success : muted,
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                const Spacer(),
-                if (payerLabel != null)
-                  Flexible(
-                    child: Text(
-                      payerLabel,
-                      style: context.text.bodySmall?.copyWith(color: Colors.white70),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
+                Text(
+                  Fmt.percent(summary.progress),
+                  style: AppTypography.mono(size: 12, color: muted),
+                ),
               ],
             ),
           ],
@@ -297,7 +278,7 @@ class _BillHeader extends ConsumerWidget {
 }
 
 // ---------------------------------------------------------------
-// Cotas: uma faixa por pessoa, com as parcelas em bolinhas
+// Cotas: uma linha por pessoa, com as parcelas em quadradinhos
 // ---------------------------------------------------------------
 
 class _SharesSection extends ConsumerWidget {
@@ -322,29 +303,35 @@ class _SharesSection extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         SectionHeader(
-          title: bill.isInstallment ? 'Quem deve o quê' : 'Divisão',
+          title: 'Divisão',
           subtitle: bill.isInstallment
-              ? 'Toque em uma pessoa para registrar o pagamento'
-              : 'Toque para registrar o pagamento',
-          icon: Icons.groups_rounded,
+              ? 'Toque em uma pessoa ou parcela para registrar o pagamento'
+              : 'Toque em uma pessoa para registrar o pagamento',
         ),
-        for (final entry in byMember.entries)
-          Padding(
-            padding: const EdgeInsets.only(bottom: Gap.md),
-            child: _MemberShareCard(
-              bill: bill,
-              member: membersById[entry.key],
-              memberId: entry.key,
-              shares: entry.value,
-            ),
+        GlassCard(
+          padding: EdgeInsets.zero,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (final (i, entry) in byMember.entries.indexed) ...[
+                if (i > 0) const Divider(),
+                _MemberShareRow(
+                  bill: bill,
+                  member: membersById[entry.key],
+                  memberId: entry.key,
+                  shares: entry.value,
+                ),
+              ],
+            ],
           ),
+        ),
       ],
     );
   }
 }
 
-class _MemberShareCard extends ConsumerWidget {
-  const _MemberShareCard({
+class _MemberShareRow extends ConsumerWidget {
+  const _MemberShareRow({
     required this.bill,
     required this.member,
     required this.memberId,
@@ -365,135 +352,114 @@ class _MemberShareCard extends ConsumerWidget {
         ? 0
         : shares.where((s) => !s.isPaid).fold<int>(0, (sum, s) => sum + s.remainingCents);
     final isMe = ref.watch(currentUidProvider) == memberId;
-    final color = member?.color ?? AppColors.inkMuted;
+    final settled = isOwner || pendingCents == 0;
+    final name = member?.shortName ?? memberId;
 
-    return GlassCard(
-      accent: color,
+    return InkWell(
       onTap: isOwner || member == null
           ? null
-          : () => showPaymentSheet(
-                context,
-                bill: bill,
-                member: member!,
-                shares: shares,
-              ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              if (member != null) MemberAvatar(member: member!, size: 42),
-              Gap.hMd,
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Row(
-                      children: [
-                        // Sem `Flexible` o nome estoura a faixa — e o
-                        // fallback aqui é o uid, com 28 caracteres.
-                        Flexible(
-                          child: Text(
-                            member?.shortName ?? memberId,
-                            style: context.text.titleMedium,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        if (isMe) ...[
-                          Gap.hSm,
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                            decoration: BoxDecoration(
-                              color: AppColors.turquoise.withValues(alpha: 0.16),
-                              borderRadius: Radii.brPill,
-                            ),
-                            child: Text(
-                              'você',
-                              style: context.text.labelSmall
-                                  ?.copyWith(color: AppColors.turquoise),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                    Text(
-                      isOwner
-                          ? 'bancou a conta · sua parte já está inclusa'
-                          : pendingCents == 0
-                              ? 'tudo pago'
-                              : 'faltam ${Money.format(pendingCents)}',
-                      style: context.text.bodySmall?.copyWith(
-                        color: isOwner
-                            ? AppColors.success
-                            : pendingCents == 0
-                                ? AppColors.success
-                                : null,
+          : () => showPaymentSheet(context, bill: bill, member: member!, shares: shares),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: Gap.lg, vertical: Gap.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                if (member != null) ...[MemberAvatar(member: member!), Gap.hMd],
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Com `ellipsis`: o fallback aqui é o uid, com 28
+                      // caracteres, e ele estourava a linha.
+                      Text(
+                        isMe ? '$name (você)' : name,
+                        style: context.text.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
+                      Text(
+                        isOwner
+                            ? 'bancou a conta · a própria parte já está inclusa'
+                            : pendingCents == 0
+                                ? 'tudo pago'
+                                : 'falta ${Money.format(pendingCents)}',
+                        style: context.text.bodySmall?.copyWith(
+                          color: settled ? context.success : null,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Gap.hSm,
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      Money.format(total),
+                      style: AppTypography.money(size: 14, color: context.colors.onSurface),
                     ),
+                    if (bill.isInstallment)
+                      Text(
+                        '$paid/${shares.length} parcelas',
+                        style: AppTypography.mono(
+                          size: 11,
+                          color: context.colors.onSurfaceVariant,
+                        ),
+                      ),
                   ],
                 ),
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
+              ],
+            ),
+            if (bill.isInstallment) ...[
+              Gap.vMd,
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
                 children: [
-                  Text(
-                    Money.format(total),
-                    style: AppTypography.money(size: 17, color: context.colors.onSurface),
-                  ),
-                  if (bill.isInstallment)
-                    Text('$paid/${shares.length} parcelas', style: context.text.labelSmall),
+                  for (final share in shares)
+                    _InstallmentBox(
+                      share: share,
+                      onTap: isOwner || member == null
+                          ? null
+                          : () => showPaymentSheet(
+                                context,
+                                bill: bill,
+                                member: member!,
+                                shares: shares,
+                                preselect: share,
+                              ),
+                    ),
                 ],
               ),
             ],
-          ),
-          if (bill.isInstallment) ...[
-            Gap.vLg,
-            Wrap(
-              spacing: Gap.sm,
-              runSpacing: Gap.sm,
-              children: [
-                for (final share in shares)
-                  _InstallmentDot(
-                    share: share,
-                    color: color,
-                    onTap: isOwner || member == null
-                        ? null
-                        : () => showPaymentSheet(
-                              context,
-                              bill: bill,
-                              member: member!,
-                              shares: shares,
-                              preselect: share,
-                            ),
-                  ),
-              ],
-            ),
           ],
-        ],
+        ),
       ),
     );
   }
 }
 
-/// Uma parcela: verde paga, vermelha vencida, cinza pendente.
-class _InstallmentDot extends StatelessWidget {
-  const _InstallmentDot({required this.share, required this.color, this.onTap});
+/// Uma parcela: verde cheia paga, contorno vermelho vencida, contorno
+/// cinza pendente.
+class _InstallmentBox extends StatelessWidget {
+  const _InstallmentBox({required this.share, this.onTap});
 
   final BillShare share;
-  final Color color;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    final (Color bg, Color fg, IconData? icon) = share.isOwnerShare
-        ? (AppColors.success.withValues(alpha: 0.14), AppColors.success, Icons.check_rounded)
+    final accent = context.success;
+    final (Color? bg, Color border, Color fg, bool check) = share.isOwnerShare
+        ? (context.successSoft, context.successSoft, accent, true)
         : share.isPaid
-            ? (AppColors.success, Colors.white, Icons.check_rounded)
+            ? (accent, accent, context.colors.onPrimary, true)
             : share.isOverdue
-                ? (AppColors.danger.withValues(alpha: 0.14), AppColors.danger, null)
-                : (context.colors.surfaceContainerHigh, context.colors.onSurfaceVariant, null);
+                ? (null, AppColors.danger, AppColors.danger, false)
+                : (null, context.colors.outline, context.colors.onSurfaceVariant, false);
 
     return Tooltip(
       message: [
@@ -507,29 +473,24 @@ class _InstallmentDot extends StatelessWidget {
         onTap: onTap,
         child: AnimatedContainer(
           duration: Motion.fast,
-          width: 44,
-          height: 40,
+          width: 36,
+          height: 32,
           decoration: BoxDecoration(
             color: bg,
             borderRadius: Radii.brSm,
-            border: share.isOverdue ? Border.all(color: AppColors.danger, width: 1.4) : null,
+            border: Border.all(color: border),
           ),
           child: Center(
-            child: icon != null
-                ? Icon(icon, size: 18, color: fg)
+            child: check
+                ? Icon(Icons.check, size: 16, color: fg)
                 : Text(
                     '${share.installmentNumber}',
-                    style: context.text.labelMedium?.copyWith(color: fg),
+                    style: AppTypography.mono(size: 12, color: fg),
                   ),
           ),
         ),
       ),
-    ).animate(target: share.isPaid ? 1 : 0).scaleXY(
-          begin: 1,
-          end: 1.06,
-          duration: Motion.fast,
-          curve: Motion.spring,
-        );
+    );
   }
 }
 
@@ -552,48 +513,44 @@ class _EntriesSection extends ConsumerWidget {
       children: [
         SectionHeader(
           title: 'Lançamentos',
-          subtitle: isSettled
-              ? 'Conta fechada — reabra para lançar mais'
-              : 'Cada vez que gastar, lance aqui',
-          icon: Icons.playlist_add_rounded,
+          subtitle: isSettled ? 'Conta fechada. Reabra para lançar mais.' : null,
           trailing: isSettled
               ? null
-              : FilledButton.tonalIcon(
+              : OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(minimumSize: const Size(0, 36)),
                   onPressed: () => showEntryForm(context, bill: bill),
-                  icon: const Icon(Icons.add_rounded, size: 18),
+                  icon: const Icon(Icons.add, size: 18),
                   label: const Text('Lançar'),
                 ),
         ),
         entriesAsync.when(
-          loading: () => const ShimmerList(itemCount: 2, itemHeight: 72),
+          loading: () => const ShimmerList(itemCount: 2, itemHeight: 56),
           error: (e, _) => ErrorView(message: 'Erro ao carregar', details: '$e'),
           data: (entries) => entries.isEmpty
               ? GlassCard(
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('🛣️', style: context.text.displaySmall),
-                      Gap.vSm,
                       Text('Nenhum lançamento ainda', style: context.text.titleSmall),
                       Gap.vXs,
                       Text(
-                        'Toque em "Lançar" cada vez que gastar. '
-                        'No final, o app divide o total.',
+                        'Lance cada gasto aqui. No fechamento o app divide o total.',
                         style: context.text.bodySmall,
-                        textAlign: TextAlign.center,
                       ),
                     ],
                   ),
                 )
-              : Column(
-                  children: [
-                    for (var i = 0; i < entries.length; i++)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: Gap.sm),
-                        child: _EntryTile(bill: bill, entry: entries[i])
-                            .animate()
-                            .fadeIn(delay: (40 * i).ms, duration: Motion.fast),
-                      ),
-                  ],
+              : GlassCard(
+                  padding: EdgeInsets.zero,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      for (final (i, entry) in entries.indexed) ...[
+                        if (i > 0) const Divider(),
+                        _EntryTile(bill: bill, entry: entry),
+                      ],
+                    ],
+                  ),
                 ),
         ),
         Gap.vLg,
@@ -613,21 +570,23 @@ class _EntryTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final payer = ref.watch(membersByIdProvider)[entry.paidByMemberId ?? bill.paidByMemberId];
 
-    return GlassCard(
-      padding: const EdgeInsets.symmetric(horizontal: Gap.lg, vertical: Gap.md),
+    return InkWell(
       onTap: bill.status == BillStatus.settled
           ? null
           : () => showEntryForm(context, bill: bill, entry: entry),
-      child: _EntryTileBody(bill: bill, entry: entry, payer: payer, ref: ref),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.md, Gap.sm, Gap.md),
+        child: _EntryTileBody(bill: bill, entry: entry, payer: payer, ref: ref),
+      ),
     );
   }
 }
 
 /// O corpo do lançamento.
 ///
-/// No celular, ícone + descrição + comprovante + valor + excluir na mesma
-/// linha deixavam ~40px para a descrição, que quebrava em cinco linhas de
-/// duas letras. Em tela estreita as ações descem para uma segunda linha.
+/// No celular, descrição + comprovante + valor + excluir na mesma linha
+/// deixavam pouco espaço para a descrição, que quebrava em várias linhas.
+/// Em tela estreita as ações descem para uma segunda linha.
 class _EntryTileBody extends StatelessWidget {
   const _EntryTileBody({
     required this.bill,
@@ -648,7 +607,7 @@ class _EntryTileBody extends StatelessWidget {
         : IconButton(
             tooltip: 'Comprovante',
             onPressed: () => openAttachment(context, entry.receipts.first),
-            icon: const Icon(Icons.receipt_long_rounded, size: 18),
+            icon: const Icon(Icons.receipt_long_outlined, size: 18),
           );
 
     final delete = bill.status == BillStatus.settled
@@ -658,22 +617,12 @@ class _EntryTileBody extends StatelessWidget {
             onPressed: () => ref
                 .read(billRepositoryProvider)
                 .deleteEntry(ref.read(currentTripIdProvider), entry),
-            icon: const Icon(Icons.close_rounded, size: 16),
+            icon: const Icon(Icons.close, size: 16),
           );
 
     final amount = Text(
       Money.format(entry.amountCents),
-      style: AppTypography.money(size: 16, color: context.colors.onSurface),
-    );
-
-    final icon = Container(
-      width: 38,
-      height: 38,
-      decoration: BoxDecoration(
-        color: bill.category.color.withValues(alpha: 0.12),
-        borderRadius: Radii.brSm,
-      ),
-      child: Icon(bill.category.icon, size: 18, color: bill.category.color),
+      style: AppTypography.money(size: 14, color: context.colors.onSurface),
     );
 
     final label = Column(
@@ -684,14 +633,14 @@ class _EntryTileBody extends StatelessWidget {
           // A descrição é opcional: sem ela, o lançamento leva o nome da
           // categoria, que na gasolina já diz tudo.
           entry.description.isEmpty ? bill.category.label : entry.description,
-          style: context.text.titleSmall,
+          style: context.text.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
         ),
         Text(
           [
             if (payer != null) '${payer!.shortName} pagou',
-            Fmt.dateWithYear(entry.date),
+            Fmt.dateShortWithYear(entry.date),
           ].join(' · '),
           style: context.text.bodySmall,
           maxLines: 1,
@@ -703,15 +652,11 @@ class _EntryTileBody extends StatelessWidget {
     if (!context.isNarrow) {
       return Row(
         children: [
-          icon,
-          Gap.hMd,
           Expanded(child: label),
-          if (receipt != null) Padding(
-            padding: const EdgeInsets.only(right: Gap.sm),
-            child: receipt,
-          ),
+          ?receipt,
+          Gap.hSm,
           amount,
-          ?delete,
+          if (delete != null) delete else Gap.hSm,
         ],
       );
     }
@@ -722,11 +667,10 @@ class _EntryTileBody extends StatelessWidget {
       children: [
         Row(
           children: [
-            icon,
-            Gap.hMd,
             Expanded(child: label),
             Gap.hSm,
             amount,
+            Gap.hSm,
           ],
         ),
         if (receipt != null || delete != null)
@@ -753,7 +697,6 @@ class _AccumulatingFooter extends ConsumerWidget {
         : Money.divide(bill.entriesTotalCents, bill.participantIds.length).first;
 
     return GlassCard(
-      accent: AppColors.sky,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -780,7 +723,7 @@ class _AccumulatingFooter extends ConsumerWidget {
               onPressed: () => ref
                   .read(billRepositoryProvider)
                   .reopenBill(ref.read(currentTripIdProvider), bill.id),
-              icon: const Icon(Icons.lock_open_rounded, size: 18),
+              icon: const Icon(Icons.lock_open, size: 18),
               label: const Text('Reabrir para lançar mais'),
             )
           else
@@ -788,7 +731,7 @@ class _AccumulatingFooter extends ConsumerWidget {
               onPressed: bill.entriesTotalCents <= 0
                   ? null
                   : () => _close(context, ref),
-              icon: const Icon(Icons.done_all_rounded, size: 18),
+              icon: const Icon(Icons.done_all, size: 18),
               label: const Text('Fechar e dividir'),
             ),
         ],
@@ -825,7 +768,7 @@ class _AccumulatingFooter extends ConsumerWidget {
         .read(billRepositoryProvider)
         .closeAccumulatingBill(ref.read(currentTripIdProvider), bill);
     if (context.mounted) {
-      context.showSnack('Conta fechada e dividida!', icon: Icons.celebration_rounded);
+      context.showSnack('Conta fechada e dividida');
     }
   }
 }

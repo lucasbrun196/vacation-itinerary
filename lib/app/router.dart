@@ -13,6 +13,7 @@ import '../features/expenses/screens/expenses_screen.dart';
 import '../features/itinerary/screens/itinerary_screen.dart';
 import '../features/trip/screens/trip_settings_screen.dart';
 import '../features/trips/screens/trips_screen.dart';
+import '../shared/widgets/domain/brand_mark.dart';
 import '../shared/widgets/layout/trip_scope.dart';
 import 'destinations.dart';
 import 'providers.dart';
@@ -101,6 +102,8 @@ final routerProvider = Provider<GoRouter>((ref) {
                     path: ':billId',
                     pageBuilder: (context, state) => CustomTransitionPage(
                       key: state.pageKey,
+                      transitionDuration: const Duration(milliseconds: 200),
+                      reverseTransitionDuration: const Duration(milliseconds: 160),
                       child: BillDetailScreen(billId: state.pathParameters['billId']!),
                       transitionsBuilder: (context, animation, _, child) => FadeTransition(
                         opacity: animation,
@@ -126,9 +129,9 @@ final routerProvider = Provider<GoRouter>((ref) {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('🏝️', style: TextStyle(fontSize: 56)),
+            const BrandMark(),
             const SizedBox(height: 16),
-            Text('Essa página não existe', style: Theme.of(context).textTheme.headlineSmall),
+            Text('Essa página não existe', style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 16),
             FilledButton(
               onPressed: () => context.go(Routes.trips),

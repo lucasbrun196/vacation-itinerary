@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 
 import '../../../core/extensions/context_ext.dart';
 import '../../../core/theme/app_colors.dart';
@@ -15,16 +14,16 @@ class ErrorBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(Gap.md),
+      padding: const EdgeInsets.symmetric(horizontal: Gap.md, vertical: Gap.sm),
       decoration: BoxDecoration(
-        color: AppColors.danger.withValues(alpha: 0.10),
-        borderRadius: Radii.brMd,
-        border: Border.all(color: AppColors.danger.withValues(alpha: 0.35)),
+        color: AppColors.danger.withValues(alpha: 0.06),
+        borderRadius: Radii.brSm,
+        border: Border.all(color: AppColors.danger.withValues(alpha: 0.4)),
       ),
       child: Row(
         children: [
-          const Icon(Icons.error_outline_rounded, color: AppColors.danger, size: 18),
-          Gap.hMd,
+          const Icon(Icons.error_outline_rounded, color: AppColors.danger, size: 16),
+          Gap.hSm,
           Expanded(
             child: Text(
               message,
@@ -33,6 +32,6 @@ class ErrorBanner extends StatelessWidget {
           ),
         ],
       ),
-    ).animate().fadeIn(duration: Motion.fast).shakeX(hz: 3, amount: 2);
+    );
   }
 }

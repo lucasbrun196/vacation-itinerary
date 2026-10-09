@@ -206,3 +206,28 @@ final owedToMeProvider = Provider<int>(
   },
   dependencies: [billsProvider, allSharesProvider],
 );
+
+/// Saldo pendente de cada participante na viagem inteira, em centavos:
+/// positivo é o que ainda tem a receber, negativo o que ainda tem a pagar.
+///
+/// Mesma regra do [owedToMeProvider] — quem recebe é o credor da cota ou,
+/// sem ele, quem bancou a conta —, só que para todo mundo de uma vez. Por
+/// isso a soma dos saldos é sempre zero.
+final memberBalancesProvider = Provider<Map<String, int>>(
+  (ref) {
+    final bills = ref.watch(billsProvider).valueOrNull ?? const <Bill>[];
+    final payerOf = {for (final b in bills) b.id: b.paidByMemberId};
+    final shares = ref.watch(allSharesProvider).valueOrNull ?? const <BillShare>[];
+
+    final balances = <String, int>{};
+    for (final s in shares) {
+      if (s.isPaid || s.isOwnerShare) continue;
+      final receiver = s.creditorId ?? payerOf[s.billId];
+      if (receiver == null || receiver == s.memberId) continue;
+      balances.update(s.memberId, (v) => v - s.remainingCents, ifAbsent: () => -s.remainingCents);
+      balances.update(receiver, (v) => v + s.remainingCents, ifAbsent: () => s.remainingCents);
+    }
+    return balances;
+  },
+  dependencies: [billsProvider, allSharesProvider],
+);

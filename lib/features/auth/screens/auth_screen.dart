@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/providers.dart';
@@ -7,6 +6,7 @@ import '../../../core/extensions/context_ext.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../data/services/auth_service.dart';
+import '../../../shared/widgets/domain/brand_mark.dart';
 import '../../../shared/widgets/feedback/error_banner.dart';
 
 enum AuthMode { signIn, signUp }
@@ -101,18 +101,18 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     return Scaffold(
       body: Stack(
         children: [
-          const _Backdrop(),
+          const Positioned.fill(child: _Backdrop()),
           SafeArea(
             child: Center(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(Gap.xl),
                 child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 440),
+                  constraints: const BoxConstraints(maxWidth: 400),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       const _Logo(),
-                      Gap.vXxl,
+                      Gap.vXl,
                       _Card(
                         child: Form(
                           key: _formKey,
@@ -122,15 +122,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                             children: [
                               Text(
                                 _isSignUp ? 'Criar conta' : 'Entrar',
-                                style: context.text.headlineMedium,
-                              ),
-                              Gap.vXs,
-                              Text(
-                                _isSignUp
-                                    ? 'Crie sua conta para montar viagens com a turma'
-                                    : 'Bem-vindo de volta',
-                                style: context.text.bodyMedium
-                                    ?.copyWith(color: context.colors.onSurfaceVariant),
+                                style: context.text.headlineSmall,
                               ),
                               Gap.vXl,
 
@@ -141,7 +133,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                                   textInputAction: TextInputAction.next,
                                   decoration: const InputDecoration(
                                     labelText: 'Seu nome',
-                                    hintText: 'Como a turma te chama',
+                                    hintText: 'Nome e sobrenome',
                                     prefixIcon: Icon(Icons.person_outline_rounded, size: 20),
                                   ),
                                   validator: (v) => (v == null || v.trim().length < 2)
@@ -220,12 +212,12 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                               FilledButton(
                                 onPressed: _loading ? null : _submit,
                                 child: _loading
-                                    ? const SizedBox(
-                                        width: 20,
-                                        height: 20,
+                                    ? SizedBox(
+                                        width: 18,
+                                        height: 18,
                                         child: CircularProgressIndicator(
-                                          strokeWidth: 2.4,
-                                          color: Colors.white,
+                                          strokeWidth: 2,
+                                          color: context.colors.onPrimary,
                                         ),
                                       )
                                     : Text(_isSignUp ? 'Criar conta' : 'Entrar'),
@@ -264,46 +256,6 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   }
 }
 
-class _Backdrop extends StatelessWidget {
-  const _Backdrop();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(gradient: AppColors.sunsetGradient),
-      child: Stack(
-        children: [
-          Positioned(
-            top: -80,
-            right: -60,
-            child: _bubble(260, 0.14),
-          ),
-          Positioned(
-            bottom: -120,
-            left: -80,
-            child: _bubble(320, 0.10),
-          ),
-          Positioned(
-            top: 180,
-            left: -40,
-            child: _bubble(140, 0.08),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _bubble(double size, double opacity) => Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: Colors.white.withValues(alpha: opacity),
-        ),
-      )
-          .animate(onPlay: (c) => c.repeat(reverse: true))
-          .moveY(begin: 0, end: 18, duration: 5.seconds, curve: Curves.easeInOut);
-}
 
 class _Logo extends StatelessWidget {
   const _Logo();
@@ -312,21 +264,15 @@ class _Logo extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        const Text('🏝️', style: TextStyle(fontSize: 56))
-            .animate(onPlay: (c) => c.repeat(reverse: true))
-            .moveY(begin: 0, end: -10, duration: 2.4.seconds, curve: Curves.easeInOut),
-        Gap.vSm,
+        const BrandMark(size: 32),
+        Gap.vXs,
         Text(
-          'Viagem',
-          style: context.text.displaySmall?.copyWith(color: Colors.white),
-        ),
-        Text(
-          'roteiro, contas e fotos em um lugar só',
-          style: context.text.bodyMedium?.copyWith(color: Colors.white70),
+          'Roteiro, contas e fotos da viagem',
+          style: context.text.bodySmall,
           textAlign: TextAlign.center,
         ),
       ],
-    ).animate().fadeIn(duration: Motion.slow).slideY(begin: -0.15, curve: Motion.enter);
+    );
   }
 }
 
@@ -342,18 +288,32 @@ class _Card extends StatelessWidget {
       decoration: BoxDecoration(
         color: context.colors.surface,
         borderRadius: Radii.brXl,
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.ink.withValues(alpha: 0.18),
-            blurRadius: 40,
-            offset: const Offset(0, 16),
-          ),
-        ],
+        border: Border.all(color: context.colors.outline),
+        boxShadow: AppColors.glow(AppColors.coral, opacity: context.isDark ? 0 : 0.12, blur: 40, y: 16),
       ),
       child: child,
-    ).animate().fadeIn(delay: 120.ms, duration: Motion.slow).slideY(
-          begin: 0.08,
-          curve: Motion.enter,
-        );
+    );
+  }
+}
+
+/// Fundo do login: um degradê bem suave de coral para pêssego, cruzando
+/// a tela na diagonal.
+class _Backdrop extends StatelessWidget {
+  const _Backdrop();
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = context.isDark;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: dark
+              ? const [Color(0xFF2A1A19), Color(0xFF171211), Color(0xFF2A2017)]
+              : const [AppColors.coralSoft, AppColors.background, AppColors.sunsetSoft],
+        ),
+      ),
+    );
   }
 }

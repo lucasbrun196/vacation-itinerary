@@ -10,6 +10,7 @@ class LocalPrefsService {
   final SharedPreferences _prefs;
 
   static const _kTripId = 'last_trip_id';
+  static const _kThemeMode = 'theme_mode';
 
   static Future<LocalPrefsService> create() async =>
       LocalPrefsService(await SharedPreferences.getInstance());
@@ -24,4 +25,10 @@ class LocalPrefsService {
       await _prefs.setString(_kTripId, id);
     }
   }
+
+  /// Tema escolhido: `system`, `light` ou `dark` — o `name` do
+  /// `ThemeMode`. Guardado como texto para não depender do Flutter aqui.
+  String? get themeMode => _prefs.getString(_kThemeMode);
+
+  Future<void> setThemeMode(String mode) => _prefs.setString(_kThemeMode, mode);
 }

@@ -17,6 +17,8 @@ class SectionHeader extends StatelessWidget {
 
   final String title;
   final String? subtitle;
+
+  /// Mantido por compatibilidade: título de seção é só texto.
   final IconData? icon;
   final String? actionLabel;
   final VoidCallback? onAction;
@@ -27,19 +29,11 @@ class SectionHeader extends StatelessWidget {
     final action = actionLabel != null && onAction != null
         ? TextButton(
             onPressed: onAction,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Flexible(
-                  child: Text(
-                    actionLabel!,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                const Icon(Icons.chevron_right_rounded, size: 18),
-              ],
+            style: TextButton.styleFrom(
+              minimumSize: const Size(0, 32),
+              padding: const EdgeInsets.symmetric(horizontal: Gap.sm),
             ),
+            child: Text(actionLabel!, maxLines: 1, overflow: TextOverflow.ellipsis),
           )
         : null;
 
@@ -74,10 +68,6 @@ class SectionHeader extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              if (icon != null) ...[
-                Icon(icon, size: 20, color: context.colors.onSurfaceVariant),
-                Gap.hSm,
-              ],
               Expanded(child: label),
               if (!stacked) ...[
                 ?trailing,

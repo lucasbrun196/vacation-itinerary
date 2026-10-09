@@ -1,0 +1,371 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+import '../../../app/providers.dart';
+import '../../../core/extensions/context_ext.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_tokens.dart';
+import '../../../core/theme/app_typography.dart';
+import '../../../core/utils/formatters.dart';
+import '../../../core/utils/money.dart';
+import '../../../data/models/bill.dart';
+import '../../../data/models/itinerary_enums.dart';
+import '../../../data/models/itinerary_item.dart';
+import '../../../shared/widgets/domain/category_badge.dart';
+import 'itinerary_chip.dart';
+import 'itinerary_form_sheet.dart';
+import 'weather_chip.dart';
+
+/// Abaixo desta largura a categoria e o transporte saem das colunas
+/// próprias e viram texto embaixo do título.
+const _tableBreakpoint = 560.0;
+
+/// Uma atividade como linha de tabela: hora em mono na coluna da esquerda,
+/// atividade no meio, categoria e transporte em colunas à direita.
+///
+/// A versão [detailed] é a do Roteiro: tem o menu de status, o endereço e
+/// as etiquetas (previsão, contas ligadas, link). A outra é a do Resumo,
+/// só para ler.
+class ItineraryRow extends ConsumerWidget {
+  const ItineraryRow({super.key, required this.item, this.detailed = true});
+
+  final ItineraryItem item;
+  final bool detailed;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final done = item.status == ItineraryStatus.done;
+    final cancelled = item.status == ItineraryStatus.cancelled;
+    final faded = done || cancelled;
+    final muted = context.colors.onSurfaceVariant;
+
+    // Na ordem em que as contas foram ligadas, e sem as que já foram
+    // apagadas em Contas.
+    final bills = detailed && item.isLinkedToBill
+        ? {
+            for (final b in ref.watch(billsProvider).valueOrNull ?? const <Bill>[]) b.id: b,
+          }
+        : const <String, Bill>{};
+    final linkedBills = [
+      for (final id in item.billIds)
+        if (bills[id] != null) bills[id]!,
+    ];
+    final hasLink = item.link != null && item.link!.isNotEmpty;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final wide = constraints.maxWidth >= _tableBreakpoint;
+
+        final place = [
+          item.placeName,
+          if (detailed) item.address,
+        ].where((s) => s != null && s.isNotEmpty).join(' · ');
+
+        final subtitle = wide
+            ? place
+            : [
+                if (place.isNotEmpty) place,
+                item.category.label,
+                ?item.transport?.label,
+              ].join(' · ');
+
+        final tags = <Widget>[
+          // Só entra na lista quando há coordenada: o botão se esconde
+          // sozinho, mas um widget vazio ainda ocuparia o `spacing`.
+          if (detailed && item.hasCoords) WeatherChip(item: item),
+          for (final bill in linkedBills)
+            ItineraryChip(
+              label: '${bill.title} · ${Money.formatCompact(bill.chargedTotalCents)}',
+              icon: Icons.receipt_long_outlined,
+              color: AppColors.sunset,
+            ),
+          if (detailed && hasLink) _LinkChip(url: item.link!),
+        ];
+
+        return InkWell(
+          onTap: () => showItineraryForm(context, item: item),
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(Gap.lg, Gap.md, detailed ? Gap.xs : Gap.lg, Gap.md),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(
+                  width: 52,
+                  child: Text(
+                    item.hasTime ? Fmt.time(item.startAt!) : '—',
+                    style: AppTypography.mono(
+                      size: 13,
+                      color: faded ? AppColors.inkFaint : context.colors.onSurface,
+                    ).copyWith(height: 2.2),
+                  ),
+                ),
+                CategoryBadge(
+                  icon: item.category.icon,
+                  color: item.category.color,
+                  size: 32,
+                  faded: faded,
+                ),
+                Gap.hMd,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              item.title,
+                              style: context.text.bodyMedium?.copyWith(
+                                fontWeight: FontWeight.w500,
+                                color: faded ? muted : null,
+                                decoration: cancelled ? TextDecoration.lineThrough : null,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (done) ...[
+                            Gap.hXs,
+                            Icon(Icons.check, size: 14, color: context.success),
+                          ],
+                        ],
+                      ),
+                      if (subtitle.isNotEmpty)
+                        Text(
+                          subtitle,
+                          style: context.text.bodySmall,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      if (tags.isNotEmpty) ...[
+                        Gap.vSm,
+                        Wrap(spacing: 6, runSpacing: 6, children: tags),
+                      ],
+                      if (detailed && item.notes != null && item.notes!.isNotEmpty) ...[
+                        Gap.vXs,
+                        Text(
+                          item.notes!,
+                          style: context.text.bodySmall?.copyWith(color: AppColors.inkFaint),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                if (wide) ...[
+                  Gap.hMd,
+                  SizedBox(
+                    width: 120,
+                    child: Text(
+                      item.category.label,
+                      style: context.text.bodySmall?.copyWith(
+                        color: faded ? null : item.category.color,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  SizedBox(
+                    width: 104,
+                    child: Text(
+                      item.transport?.label ?? '—',
+                      style: context.text.bodySmall,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+                if (detailed) _StatusButton(item: item),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// O cabeçalho das colunas, para quando a tabela tem largura para elas.
+class ItineraryTableHeader extends StatelessWidget {
+  const ItineraryTableHeader({super.key, this.detailed = true});
+
+  final bool detailed;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < _tableBreakpoint) return const SizedBox.shrink();
+        final style = context.text.labelSmall;
+
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: EdgeInsets.fromLTRB(Gap.lg, Gap.sm, detailed ? Gap.xs : Gap.lg, Gap.sm),
+              child: Row(
+                children: [
+                  SizedBox(width: 52, child: Text('Hora', style: style)),
+                  // A largura do selo de categoria e do espaço depois dele.
+                  const SizedBox(width: 44),
+                  Expanded(child: Text('Atividade', style: style)),
+                  Gap.hMd,
+                  SizedBox(width: 120, child: Text('Categoria', style: style)),
+                  SizedBox(width: 104, child: Text('Transporte', style: style)),
+                  // A largura do botão de menu das linhas.
+                  if (detailed) const SizedBox(width: 40),
+                ],
+              ),
+            ),
+            const Divider(),
+          ],
+        );
+      },
+    );
+  }
+}
+
+/// Marca como feita, cancela ou apaga a atividade.
+class _StatusButton extends ConsumerWidget {
+  const _StatusButton({required this.item});
+
+  final ItineraryItem item;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final done = item.status == ItineraryStatus.done;
+
+    return SizedBox(
+      width: 40,
+      height: 24,
+      child: PopupMenuButton<String>(
+        tooltip: 'Opções',
+        padding: EdgeInsets.zero,
+        icon: Icon(Icons.more_horiz, size: 18, color: context.colors.onSurfaceVariant),
+        onSelected: (value) async {
+          final repo = ref.read(itineraryRepositoryProvider);
+          final tripId = ref.read(currentTripIdProvider);
+
+          switch (value) {
+            case 'feito':
+              await repo.setStatus(tripId, item.id, ItineraryStatus.done.name);
+            case 'planejado':
+              await repo.setStatus(tripId, item.id, ItineraryStatus.planned.name);
+            case 'cancelado':
+              await repo.setStatus(tripId, item.id, ItineraryStatus.cancelled.name);
+            case 'editar':
+              if (context.mounted) await showItineraryForm(context, item: item);
+            case 'excluir':
+              if (context.mounted) await _confirmDelete(context, ref);
+          }
+        },
+        itemBuilder: (context) => [
+          if (!done)
+            const PopupMenuItem(
+              value: 'feito',
+              child: _MenuRow(icon: Icons.check, label: 'Marcar como feito'),
+            )
+          else
+            const PopupMenuItem(
+              value: 'planejado',
+              child: _MenuRow(icon: Icons.undo, label: 'Voltar para planejado'),
+            ),
+          const PopupMenuItem(
+            value: 'editar',
+            child: _MenuRow(icon: Icons.edit_outlined, label: 'Editar'),
+          ),
+          if (item.status != ItineraryStatus.cancelled)
+            const PopupMenuItem(
+              value: 'cancelado',
+              child: _MenuRow(icon: Icons.block, label: 'Cancelar atividade'),
+            ),
+          const PopupMenuDivider(),
+          const PopupMenuItem(
+            value: 'excluir',
+            child: _MenuRow(
+              icon: Icons.delete_outline,
+              label: 'Excluir',
+              color: AppColors.danger,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _confirmDelete(BuildContext context, WidgetRef ref) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Excluir atividade?'),
+        content: Text('"${item.title}" sai do roteiro. As contas ligadas a ela continuam '
+            'em Contas.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: context.colors.error),
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Excluir'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+
+    await ref
+        .read(itineraryRepositoryProvider)
+        .deleteItem(ref.read(currentTripIdProvider), item.id);
+    if (context.mounted) context.showSnack('Atividade excluída');
+  }
+}
+
+class _MenuRow extends StatelessWidget {
+  const _MenuRow({required this.icon, required this.label, this.color});
+
+  final IconData icon;
+  final String label;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: color),
+        Gap.hMd,
+        Text(label, style: context.text.bodyMedium?.copyWith(color: color)),
+      ],
+    );
+  }
+}
+
+class _LinkChip extends StatelessWidget {
+  const _LinkChip({required this.url});
+
+  final String url;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: Radii.brSm,
+      onTap: () async {
+        final uri = Uri.tryParse(url.startsWith('http') ? url : 'https://$url');
+        if (uri == null) return;
+        final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+        if (!ok && context.mounted) {
+          context.showSnack('Não deu para abrir o link', isError: true);
+        }
+      },
+      child: const ItineraryChip(
+        label: 'Abrir link',
+        icon: Icons.open_in_new,
+        color: AppColors.grape,
+      ),
+    );
+  }
+}

@@ -51,11 +51,11 @@ class WeatherSheet extends ConsumerWidget {
               loading: () => const Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  ShimmerBox(height: 120, borderRadius: Radii.brLg),
+                  ShimmerBox(height: 120, borderRadius: Radii.brSm),
                   Gap.vMd,
-                  ShimmerBox(height: 76, borderRadius: Radii.brLg),
+                  ShimmerBox(height: 76, borderRadius: Radii.brSm),
                   Gap.vMd,
-                  ShimmerBox(height: 108, borderRadius: Radii.brLg),
+                  ShimmerBox(height: 108, borderRadius: Radii.brSm),
                 ],
               ),
               error: (e, _) => ErrorView(
@@ -94,7 +94,6 @@ class _Unavailable extends StatelessWidget {
       title: 'Ainda não dá para saber',
       message: 'A previsão alcança 16 dias à frente. Este dia está fora desse '
           'alcance — ou já passou. Volte mais perto da data.',
-      accent: AppColors.sky,
     );
   }
 }
@@ -151,17 +150,18 @@ class _Hero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final accent = day.condition.color;
+    final accent = context.colors.onSurface;
 
     return Container(
       padding: const EdgeInsets.all(Gap.lg),
       decoration: BoxDecoration(
-        color: accent.withValues(alpha: 0.10),
-        borderRadius: Radii.brLg,
+        color: context.colors.surfaceContainerLow,
+        border: Border.all(color: context.colors.outline),
+        borderRadius: Radii.brSm,
       ),
       child: Row(
         children: [
-          Icon(day.condition.icon, size: 46, color: accent),
+          Icon(day.condition.icon, size: 36, color: context.colors.onSurfaceVariant),
           Gap.hLg,
           Expanded(
             child: Column(
@@ -172,7 +172,7 @@ class _Hero extends StatelessWidget {
                 Gap.vXs,
                 Text(
                   day.tempLabel,
-                  style: AppTypography.money(size: 30, color: accent),
+                  style: AppTypography.money(size: 28, color: accent),
                 ),
                 if (day.apparentLabel != null)
                   Text(
@@ -197,13 +197,14 @@ class _RainVerdict extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final wet = day.willRain;
-    final accent = wet ? AppColors.sky : AppColors.palm;
+    final accent = context.colors.onSurfaceVariant;
 
     return Container(
       padding: const EdgeInsets.all(Gap.md),
       decoration: BoxDecoration(
-        color: accent.withValues(alpha: 0.10),
-        borderRadius: Radii.brMd,
+        color: context.colors.surfaceContainerLow,
+        border: Border.all(color: context.colors.outline),
+        borderRadius: Radii.brSm,
       ),
       child: Row(
         children: [
@@ -246,12 +247,12 @@ class _AtActivity extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(Gap.md),
       decoration: BoxDecoration(
-        borderRadius: Radii.brMd,
-        border: Border.all(color: context.colors.outline, width: 1.2),
+        borderRadius: Radii.brSm,
+        border: Border.all(color: context.colors.outline),
       ),
       child: Row(
         children: [
-          Icon(hour.condition.icon, size: 20, color: hour.condition.color),
+          Icon(hour.condition.icon, size: 20, color: context.colors.onSurfaceVariant),
           Gap.hMd,
           Expanded(
             child: Column(
@@ -370,14 +371,15 @@ class _Fact extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(Gap.md),
       decoration: BoxDecoration(
-        color: context.colors.surfaceContainerHigh,
-        borderRadius: Radii.brMd,
+        color: context.colors.surfaceContainerLow,
+        border: Border.all(color: context.colors.outline),
+        borderRadius: Radii.brSm,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 16, color: color),
+          Icon(icon, size: 16, color: context.colors.onSurfaceVariant),
           Gap.vSm,
           Text(
             value,
@@ -421,12 +423,12 @@ class _HourStrip extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: Gap.sm),
             decoration: BoxDecoration(
               color: isNow
-                  ? hour.condition.color.withValues(alpha: 0.14)
-                  : context.colors.surfaceContainerHigh,
-              borderRadius: Radii.brMd,
+                  ? context.colors.surface
+                  : context.colors.surfaceContainerLow,
+              borderRadius: Radii.brSm,
               border: isNow
-                  ? Border.all(color: hour.condition.color, width: 1.4)
-                  : null,
+                  ? Border.all(color: context.colors.onSurface, width: 1.5)
+                  : Border.all(color: context.colors.outline),
             ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -437,14 +439,14 @@ class _HourStrip extends StatelessWidget {
                     fontWeight: isNow ? FontWeight.w700 : null,
                   ),
                 ),
-                Icon(hour.condition.icon, size: 18, color: hour.condition.color),
+                Icon(hour.condition.icon, size: 18, color: context.colors.onSurfaceVariant),
                 Text(
                   hour.tempLabel,
                   style: AppTypography.money(size: 14, color: context.colors.onSurface),
                 ),
                 Text(
                   hour.precipProbability == null ? '—' : '${hour.precipProbability}%',
-                  style: context.text.labelSmall?.copyWith(color: AppColors.sky),
+                  style: AppTypography.mono(size: 11, color: context.colors.onSurfaceVariant),
                 ),
               ],
             ),

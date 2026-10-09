@@ -24,12 +24,13 @@ abstract final class Gap {
   static const vXxl = SizedBox(height: xxl);
 }
 
-/// Cantos generosos: a diferença principal entre "app de viagem" e "sistema".
+/// Cantos arredondados e amigáveis. Botões e campos usam `md`, cartões
+/// `lg`, painéis de destaque `xl`.
 abstract final class Radii {
-  static const sm = 10.0;
-  static const md = 16.0;
-  static const lg = 22.0;
-  static const xl = 28.0;
+  static const sm = 8.0;
+  static const md = 12.0;
+  static const lg = 16.0;
+  static const xl = 22.0;
   static const pill = 999.0;
 
   static const brSm = BorderRadius.all(Radius.circular(sm));
@@ -40,15 +41,26 @@ abstract final class Radii {
 }
 
 /// Durações e curvas padronizadas — animação inconsistente parece bug.
+///
+/// Interação responde rápido; o que entra em cena pode ter um leve
+/// "quique" ([spring]), que é o que dá o ar alegre sem cansar.
 abstract final class Motion {
-  static const instant = Duration(milliseconds: 120);
-  static const fast = Duration(milliseconds: 220);
-  static const normal = Duration(milliseconds: 350);
-  static const slow = Duration(milliseconds: 550);
-  static const lazy = Duration(milliseconds: 800);
+  static const instant = Duration(milliseconds: 100);
+  static const fast = Duration(milliseconds: 180);
+  static const normal = Duration(milliseconds: 260);
+  static const slow = Duration(milliseconds: 360);
+  static const lazy = Duration(milliseconds: 500);
+
+  /// Valores que "contam" até o total e barras que enchem.
+  static const reveal = Duration(milliseconds: 900);
+
+  /// Intervalo entre os blocos de uma página que entram em sequência.
+  static const stagger = Duration(milliseconds: 55);
 
   static const enter = Curves.easeOutCubic;
   static const exit = Curves.easeInCubic;
+
+  /// Passa um pouco do alvo e volta: para entradas e seleções.
   static const spring = Curves.easeOutBack;
   static const smooth = Curves.easeInOutCubic;
 }

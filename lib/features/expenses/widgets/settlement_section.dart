@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/providers.dart';
 import '../../../core/extensions/context_ext.dart';
-import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/utils/money.dart';
@@ -42,20 +41,26 @@ class SettlementSection extends ConsumerWidget {
       children: [
         const SectionHeader(
           title: 'Acerto',
-          subtitle: 'Quanto cada um pagou · toque para ver para quem deve',
-          icon: Icons.swap_horiz_rounded,
+          subtitle: 'Quanto cada um pagou. Toque para ver para quem deve.',
         ),
-        for (final id in settlement.memberIds)
-          Padding(
-            padding: const EdgeInsets.only(bottom: Gap.md),
-            child: _PersonCard(
-              bill: bill,
-              memberId: id,
-              member: membersById[id],
-              paidCents: settlement.paidBy(id),
-              ledger: ledger,
-            ),
+        GlassCard(
+          padding: EdgeInsets.zero,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (final (i, id) in settlement.memberIds.indexed) ...[
+                if (i > 0) const Divider(),
+                _PersonCard(
+                  bill: bill,
+                  memberId: id,
+                  member: membersById[id],
+                  paidCents: settlement.paidBy(id),
+                  ledger: ledger,
+                ),
+              ],
+            ],
           ),
+        ),
       ],
     );
   }
@@ -108,69 +113,63 @@ class _PersonCard extends ConsumerWidget {
     final toPay = _Ledger.pending(debts);
     final toReceive = _Ledger.pending(credits);
     final isMe = ref.watch(currentUidProvider) == memberId;
-    final color = member?.color ?? AppColors.inkMuted;
+    final name = member?.shortName ?? memberId;
 
-    final (String status, Color statusColor) = toPay > 0
-        ? ('deve ${Money.format(toPay)}', AppColors.coral)
+    final (String status, Color? statusColor) = toPay > 0
+        ? ('deve ${Money.format(toPay)}', null)
         : toReceive > 0
-            ? ('tem ${Money.format(toReceive)} a receber', AppColors.turquoise)
+            ? ('tem ${Money.format(toReceive)} a receber', context.success)
             : debts.isEmpty && credits.isEmpty
-                ? ('nada a acertar', AppColors.success)
-                : ('acerto feito', AppColors.success);
+                ? ('nada a acertar', context.success)
+                : ('acerto feito', context.success);
 
-    return GlassCard(
-      accent: color,
+    return InkWell(
       onTap: () => showAppSheet(
         context: context,
-        title: member?.shortName ?? memberId,
+        title: name,
         subtitle: 'Acerto · ${bill.title}',
         builder: (_) => _PersonSheet(bill: bill, memberId: memberId),
       ),
-      child: Row(
-        children: [
-          if (member != null) MemberAvatar(member: member!, size: 42),
-          Gap.hMd,
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.md, Gap.sm, Gap.md),
+        child: Row(
+          children: [
+            if (member != null) ...[MemberAvatar(member: member!), Gap.hMd],
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    isMe ? '$name (você)' : name,
+                    style: context.text.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    status,
+                    style: context.text.bodySmall?.copyWith(color: statusColor),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            Gap.hSm,
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Row(
-                  children: [
-                    Flexible(
-                      child: Text(
-                        member?.shortName ?? memberId,
-                        style: context.text.titleMedium,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    if (isMe) ...[Gap.hSm, const _YouBadge()],
-                  ],
-                ),
+                Text('pagou', style: context.text.labelSmall),
                 Text(
-                  status,
-                  style: context.text.bodySmall?.copyWith(color: statusColor),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  Money.format(paidCents),
+                  style: AppTypography.money(size: 14, color: context.colors.onSurface),
                 ),
               ],
             ),
-          ),
-          Gap.hSm,
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text('pagou', style: context.text.labelSmall),
-              Text(
-                Money.format(paidCents),
-                style: AppTypography.money(size: 17, color: context.colors.onSurface),
-              ),
-            ],
-          ),
-          Gap.hXs,
-          Icon(Icons.chevron_right_rounded, color: context.colors.onSurfaceVariant),
-        ],
+            Gap.hXs,
+            Icon(Icons.chevron_right, size: 18, color: context.colors.onSurfaceVariant),
+          ],
+        ),
       ),
     );
   }
@@ -288,7 +287,7 @@ class _Stat extends StatelessWidget {
       padding: const EdgeInsets.all(Gap.md),
       decoration: BoxDecoration(
         color: context.colors.surfaceContainerHigh,
-        borderRadius: Radii.brMd,
+        borderRadius: Radii.brSm,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -299,7 +298,7 @@ class _Stat extends StatelessWidget {
             alignment: Alignment.centerLeft,
             child: Text(
               Money.format(cents),
-              style: AppTypography.money(size: 19, color: context.colors.onSurface),
+              style: AppTypography.money(size: 18, color: context.colors.onSurface),
             ),
           ),
         ],
@@ -329,20 +328,20 @@ class _TransferTile extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: Gap.sm),
       child: InkWell(
-        borderRadius: Radii.brMd,
+        borderRadius: Radii.brSm,
         onTap: onTap,
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: Gap.md, vertical: Gap.sm),
           decoration: BoxDecoration(
-            borderRadius: Radii.brMd,
+            borderRadius: Radii.brSm,
             border: Border.all(
-              color: paid ? AppColors.success : context.colors.outline,
-              width: 1.2,
+              color: paid ? context.success : context.colors.outline,
+
             ),
           ),
           child: Row(
             children: [
-              if (other != null) MemberAvatar(member: other!, size: 34),
+              if (other != null) MemberAvatar(member: other!),
               Gap.hMd,
               Expanded(
                 child: Column(
@@ -362,7 +361,7 @@ class _TransferTile extends StatelessWidget {
                               ? other?.pixKey ?? 'Chave PIX não cadastrada'
                               : 'pendente',
                       style: context.text.bodySmall?.copyWith(
-                        color: paid ? AppColors.success : null,
+                        color: paid ? context.success : null,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -375,35 +374,16 @@ class _TransferTile extends StatelessWidget {
                 Money.format(share.amountCents),
                 style: AppTypography.money(
                   size: 16,
-                  color: paid ? AppColors.success : context.colors.onSurface,
+                  color: paid ? context.success : context.colors.onSurface,
                 ),
               ),
               if (paid) ...[
                 Gap.hXs,
-                const Icon(Icons.check_circle_rounded, color: AppColors.success, size: 18),
+                Icon(Icons.check, color: context.success, size: 16),
               ],
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _YouBadge extends StatelessWidget {
-  const _YouBadge();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-      decoration: BoxDecoration(
-        color: AppColors.turquoise.withValues(alpha: 0.16),
-        borderRadius: Radii.brPill,
-      ),
-      child: Text(
-        'você',
-        style: context.text.labelSmall?.copyWith(color: AppColors.turquoise),
       ),
     );
   }
