@@ -11,6 +11,7 @@ import '../../../core/utils/money.dart';
 import '../../../data/models/bill.dart';
 import '../../../data/models/enums.dart';
 import '../../../data/models/member.dart';
+import '../../../shared/widgets/inputs/date_range_dialog.dart';
 import '../../../shared/widgets/domain/member_avatar.dart';
 import '../../../shared/widgets/inputs/money_field.dart';
 import '../../../shared/widgets/layout/app_sheet.dart';
@@ -315,13 +316,12 @@ class _BillFormSheetState extends ConsumerState<BillFormSheet> {
 
   Future<void> _pickFirstDueDate() async {
     final now = DateTime.now();
-    final picked = await showDatePicker(
-      context: context,
+    final picked = await showAppDatePicker(
+      context,
       initialDate: _firstDueDate ?? DateTime(now.year, now.month + 1, 10),
       firstDate: DateTime(now.year - 1),
       lastDate: DateTime(now.year + 5),
-      helpText: 'Vencimento da 1ª parcela',
-      locale: const Locale('pt', 'BR'),
+      title: 'Vencimento da 1ª parcela',
     );
     if (picked != null) setState(() => _firstDueDate = picked);
   }

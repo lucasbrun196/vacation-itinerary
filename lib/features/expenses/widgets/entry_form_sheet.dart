@@ -12,6 +12,7 @@ import '../../../data/models/bill_entry.dart';
 import '../../../data/models/member.dart';
 import '../../../data/services/file_picker_service.dart';
 import '../../../data/services/storage_service.dart';
+import '../../../shared/widgets/inputs/date_range_dialog.dart';
 import '../../../shared/widgets/domain/member_avatar.dart';
 import '../../../shared/widgets/inputs/money_field.dart';
 import '../../../shared/widgets/layout/app_sheet.dart';
@@ -194,12 +195,12 @@ class _EntryFormSheetState extends ConsumerState<EntryFormSheet> {
                   InkWell(
                     borderRadius: Radii.brMd,
                     onTap: () async {
-                      final picked = await showDatePicker(
-                        context: context,
+                      final picked = await showAppDatePicker(
+                        context,
                         initialDate: _date,
                         firstDate: DateTime(DateTime.now().year - 1),
                         lastDate: DateTime(DateTime.now().year + 2),
-                        locale: const Locale('pt', 'BR'),
+                        title: 'Data do gasto',
                       );
                       if (picked != null) setState(() => _date = picked);
                     },

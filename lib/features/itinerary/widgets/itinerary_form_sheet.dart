@@ -13,6 +13,7 @@ import '../../../data/models/itinerary_enums.dart';
 import '../../../data/models/itinerary_item.dart';
 import '../../../data/services/geocoding_service.dart';
 import '../../../core/config/map_config.dart';
+import '../../../shared/widgets/inputs/date_range_dialog.dart';
 import '../../../shared/widgets/layout/app_sheet.dart';
 import 'map_picker_sheet.dart';
 
@@ -159,13 +160,12 @@ class _ItineraryFormSheetState extends ConsumerState<ItineraryFormSheet> {
 
   Future<void> _pickDate() async {
     final trip = ref.read(tripProvider).valueOrNull;
-    final picked = await showDatePicker(
-      context: context,
+    final picked = await showAppDatePicker(
+      context,
       initialDate: _date,
       firstDate: trip?.startDate ?? DateTime(_date.year - 1),
       lastDate: trip?.endDate ?? DateTime(_date.year + 2),
-      locale: const Locale('pt', 'BR'),
-      helpText: 'Que dia é a atividade?',
+      title: 'Que dia é a atividade?',
     );
     if (picked != null) {
       setState(() => _date = DateTime(picked.year, picked.month, picked.day));
