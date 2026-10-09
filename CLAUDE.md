@@ -91,6 +91,31 @@ mesmo ligada a várias atividades (`itinerarySpendByCategoryProvider`), senão o
 gasto do roteiro infla. Apagar uma conta em Gastos desfaz só o vínculo dela:
 `ItineraryRepository.unlinkBill` usa `arrayRemove` e consulta os dois formatos.
 
+**O service worker é o nosso, `web/sw.js` — o do Flutter não serve mais.**
+Desde o Flutter 3.41 o `flutter_service_worker.js` gerado pelo build se
+**desregistra** ao ativar: a estratégia `offline-first` foi depreciada e não
+guarda recurso nenhum. Por isso o build web roda com `--pwa-strategy=none`
+(ver `scripts/vercel_build.sh`) e o registro fica no `web/index.html`: dois
+workers no mesmo escopo são um registro só, e o do Flutter apagaria o nosso.
+O registro é pulado no `localhost`, senão cada edição em desenvolvimento
+voltaria do cache. A rede sempre tem a primeira palavra, então deploy novo
+nunca fica preso atrás de cache velho.
+
+**O cache em disco do Firestore é ligado na mão, no `Bootstrap`.** Na web o
+padrão do Firestore é guardar tudo **só em memória**: sem
+`persistenceEnabled: true` o app abria sem rede e mostrava tela vazia, porque
+a casca estava em cache e o dado não. Precisa vir antes da primeira consulta —
+mudar `settings` depois disso lança. O `webPersistentTabManager` não é
+enfeite: sem ele a segunda aba fica sem persistência.
+
+**Offline não tem tela própria: tem uma faixa.** `SyncBanner` embrulha a
+aplicação inteira no `builder` do `MaterialApp`, porque o estado é da sessão e
+não da página. O Firestore não expõe "estou online?" — expõe, por snapshot, se
+o dado veio do cache (`isFromCache`) e se há escrita na fila
+(`hasPendingWrites`); `SyncStatusService` traduz isso. A carência de três
+segundos antes de avisar "sem conexão" existe porque **o primeiro snapshot vem
+do cache mesmo online**, e sem ela a faixa piscaria em toda abertura.
+
 **A previsão do tempo some em silêncio, e isso é o comportamento certo.** O
 `WeatherChip` do card não aparece quando a atividade não tem coordenada, quando
 falta mais de uma semana para a viagem começar (ou ela já acabou —

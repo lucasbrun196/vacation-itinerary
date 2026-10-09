@@ -142,6 +142,56 @@ flutter/bin/flutter build web --release --dart-define=MAPBOX_TOKEN=$MAPBOX_TOKEN
 Sem token nada quebra: o botão "Escolher no mapa" fica desabilitado explicando
 o que falta, e os campos "Lugar" e "Endereço" seguem sendo digitados à mão.
 
+## Funcionar sem rede
+
+Viagem é justamente onde o 4G falha, então o app abre e continua útil offline.
+São duas peças independentes:
+
+| Peça | O que guarda | Onde |
+|---|---|---|
+| `web/sw.js` | A casca: HTML, bundle, fontes, ícones | Cache do navegador |
+| Cache do Firestore | O dado: viagens, roteiro, contas, cotas | IndexedDB / disco |
+
+Sem a primeira o app nem abre; sem a segunda ele abre vazio. Offline dá para
+ler tudo que já tinha sido carregado e **continuar lançando gasto e editando o
+roteiro** — as escritas ficam na fila e sobem sozinhas quando a rede volta.
+
+Uma faixa no topo diz em qual dos dois estados você está: "Sem conexão —
+mostrando o que já estava salvo" ou "Enviando as alterações…". Ela só aparece
+depois de três segundos sem resposta do servidor, porque o primeiro dado que o
+Firestore entrega vem do cache mesmo quando há rede — avisar na hora faria a
+faixa piscar em toda abertura.
+
+O que **não** funciona offline: entrar pela primeira vez (o Firebase Auth
+precisa da rede — uma sessão já aberta continua valendo), o mapa, a previsão do
+tempo e enviar comprovante.
+
+### Por que um service worker à mão
+
+Desde o Flutter 3.41 o `flutter_service_worker.js` gerado pelo build é um
+worker que **se desregistra** ao ativar — a estratégia `offline-first` do
+Flutter foi depreciada e não guarda mais nada. Por isso o build roda com
+`--pwa-strategy=none` e o registro aponta para o nosso `web/sw.js`: dois
+workers no mesmo escopo são um registro só, e o do Flutter apagaria o nosso.
+
+O cache nunca fica na frente de um deploy: a rede tem sempre a primeira
+palavra, e o cache responde quando ela falha.
+
+### Testar o offline
+
+O service worker não é registrado no `localhost` — em desenvolvimento ele
+serviria código velho a cada edição. Para exercitá-lo, sirva o build de release
+por um nome qualquer de host:
+
+```bash
+flutter build web --release --pwa-strategy=none --dart-define=MAPBOX_TOKEN=pk.SEU_TOKEN
+python3 -m http.server 8787 --directory build/web
+```
+
+Abra <http://app.localhost:8787>, carregue uma vez, **desligue o servidor** e
+recarregue: o app precisa abrir igual. A configuração `web-release` em
+`.claude/launch.json` faz os dois passos.
+
 ## Deploy na Vercel
 
 O build roda por `scripts/vercel_build.sh`, que baixa o Flutter, gera as
@@ -234,6 +284,6 @@ divisões e conta entre amigos precisa fechar no centavo — ver
 - [x] **4** — Contas compartilhadas (parcelamento, divisão, cotas, pagamentos)
 - [x] **5** — Comprovantes (upload, visualização, exclusão)
 - [ ] **6** — Mural (fotos e vídeos)
-- [ ] **7** — Dashboard completo, polimento e PWA
+- [ ] **7** — Dashboard completo, polimento e PWA (offline e service worker prontos)
 - [ ] **8** — Deploy na Vercel
 - [ ] **9** — Android (APK) e iOS
