@@ -223,9 +223,14 @@ class _BillFormSheetState extends ConsumerState<BillFormSheet> {
                     const _AccumulatingHint(),
 
                   Gap.vXl,
-                  Text('Quem bancou', style: context.text.labelLarge),
                   Text(
-                    'Quem pagou e vai receber as transferências',
+                    _type == BillType.accumulating ? 'Quem costuma pagar' : 'Quem bancou',
+                    style: context.text.labelLarge,
+                  ),
+                  Text(
+                    _type == BillType.accumulating
+                        ? 'Vem marcado em cada lançamento — dá para trocar a cada vez'
+                        : 'Quem pagou e vai receber as transferências',
                     style: context.text.bodySmall,
                   ),
                   Gap.vSm,
