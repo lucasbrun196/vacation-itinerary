@@ -14,6 +14,7 @@ import '../../../data/models/bill_share.dart';
 import '../../../data/models/member.dart';
 import '../../../data/services/file_picker_service.dart';
 import '../../../data/services/storage_service.dart';
+import '../../../shared/widgets/inputs/date_range_dialog.dart';
 import '../../../shared/widgets/domain/member_avatar.dart';
 import '../../../shared/widgets/layout/app_sheet.dart';
 import '../../../shared/widgets/media/attachment_tile.dart';
@@ -222,12 +223,12 @@ class _SharePaymentSheetState extends ConsumerState<SharePaymentSheet> {
                 InkWell(
                   borderRadius: Radii.brSm,
                   onTap: () async {
-                    final picked = await showDatePicker(
-                      context: context,
+                    final picked = await showAppDatePicker(
+                      context,
                       initialDate: _paidAt,
                       firstDate: DateTime(DateTime.now().year - 1),
                       lastDate: DateTime(DateTime.now().year + 2),
-                      locale: const Locale('pt', 'BR'),
+                      title: 'Data do pagamento',
                     );
                     if (picked != null) setState(() => _paidAt = picked);
                   },

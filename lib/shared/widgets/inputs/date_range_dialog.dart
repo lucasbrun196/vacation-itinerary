@@ -7,39 +7,87 @@ import '../../../core/theme/app_tokens.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/utils/formatters.dart';
 
-/// Abre o calendário de ida e volta num diálogo. Devolve `null` se a
-/// pessoa cancelar.
+// Os calendários do app: o de ida e volta da viagem e o de data única dos
+// formulários. Mesmo visual, mesma grade; muda o que um toque seleciona e
+// até onde se pode navegar.
+//
+// Usam `showDialog` direto, e não `showAppSheet`, porque não leem provider
+// nenhum: recebem datas e devolvem datas.
+
+/// Calendário de ida e volta. Devolve `null` se a pessoa cancelar.
 ///
 /// Só deixa escolher de hoje em diante: viagem se planeja para a frente.
 /// Uma viagem já em andamento, ao ser editada, mostra as datas que tinha;
 /// só não dá para escolher um dia anterior a hoje.
-///
-/// Usa `showDialog` direto, e não `showAppSheet`, porque não lê provider
-/// nenhum: recebe datas e devolve datas.
 Future<DateTimeRange?> showTripDatesDialog(
   BuildContext context, {
   DateTimeRange? initial,
   String title = 'Quando é a viagem?',
 }) {
+  final today = DateTime.now().dateOnly;
   return showDialog<DateTimeRange>(
     context: context,
-    builder: (_) => _DateRangeDialog(initial: initial, title: title),
+    builder: (_) => _CalendarDialog(
+      title: title,
+      initialStart: initial?.start,
+      initialEnd: initial?.end,
+      firstDay: today,
+      lastDay: DateTime(today.year + 5, 12, 31),
+      single: false,
+    ),
   );
 }
 
-class _DateRangeDialog extends StatefulWidget {
-  const _DateRangeDialog({required this.initial, required this.title});
-
-  final DateTimeRange? initial;
-  final String title;
-
-  @override
-  State<_DateRangeDialog> createState() => _DateRangeDialogState();
+/// Calendário de uma data só — vencimento, lançamento, pagamento, dia da
+/// atividade. Aceita qualquer dia entre [firstDate] e [lastDate], passado
+/// inclusive. Devolve `null` se a pessoa cancelar.
+Future<DateTime?> showAppDatePicker(
+  BuildContext context, {
+  required DateTime initialDate,
+  required DateTime firstDate,
+  required DateTime lastDate,
+  String title = 'Escolha a data',
+}) async {
+  final range = await showDialog<DateTimeRange>(
+    context: context,
+    builder: (_) => _CalendarDialog(
+      title: title,
+      initialStart: initialDate,
+      initialEnd: initialDate,
+      firstDay: firstDate.dateOnly,
+      lastDay: lastDate.dateOnly,
+      single: true,
+    ),
+  );
+  return range?.start;
 }
 
-class _DateRangeDialogState extends State<_DateRangeDialog> {
+class _CalendarDialog extends StatefulWidget {
+  const _CalendarDialog({
+    required this.title,
+    required this.initialStart,
+    required this.initialEnd,
+    required this.firstDay,
+    required this.lastDay,
+    required this.single,
+  });
+
+  final String title;
+  final DateTime? initialStart;
+  final DateTime? initialEnd;
+  final DateTime firstDay;
+  final DateTime lastDay;
+
+  /// Um toque escolhe a data; sem isso, o primeiro toque é a ida e o
+  /// segundo a volta.
+  final bool single;
+
+  @override
+  State<_CalendarDialog> createState() => _CalendarDialogState();
+}
+
+class _CalendarDialogState extends State<_CalendarDialog> {
   late final DateTime _today = DateTime.now().dateOnly;
-  late final DateTime _lastDay = DateTime(_today.year + 5, 12, 31);
 
   DateTime? _start;
   DateTime? _end;
@@ -48,17 +96,30 @@ class _DateRangeDialogState extends State<_DateRangeDialog> {
   /// Direção da última troca de mês, para o deslize ir para o lado certo.
   int _direction = 1;
 
+  bool _selectable(DateTime day) =>
+      !day.isBefore(widget.firstDay) && !day.isAfter(widget.lastDay);
+
   @override
   void initState() {
     super.initState();
-    _start = widget.initial?.start.dateOnly;
-    _end = widget.initial?.end.dateOnly;
-    final anchor = _start != null && !_start!.isBefore(_today) ? _start! : _today;
+    _start = widget.initialStart?.dateOnly;
+    _end = widget.initialEnd?.dateOnly;
+
+    // Abre no mês da data escolhida; se ela estiver fora do que se pode
+    // escolher, no mês de hoje — e, se hoje também estiver fora, no
+    // primeiro mês permitido.
+    final anchor = _start != null && _selectable(_start!)
+        ? _start!
+        : _selectable(_today)
+            ? _today
+            : _today.isBefore(widget.firstDay)
+                ? widget.firstDay
+                : widget.lastDay;
     _month = DateTime(anchor.year, anchor.month);
   }
 
-  bool get _canGoBack => _month.isAfter(DateTime(_today.year, _today.month));
-  bool get _canGoForward => _month.isBefore(DateTime(_lastDay.year, _lastDay.month));
+  bool get _canGoBack => _month.isAfter(DateTime(widget.firstDay.year, widget.firstDay.month));
+  bool get _canGoForward => _month.isBefore(DateTime(widget.lastDay.year, widget.lastDay.month));
 
   void _shiftMonth(int delta) => setState(() {
         _direction = delta;
@@ -66,7 +127,10 @@ class _DateRangeDialogState extends State<_DateRangeDialog> {
       });
 
   void _tap(DateTime day) => setState(() {
-        if (_start == null || _end != null || day.isBefore(_start!)) {
+        if (widget.single) {
+          _start = day;
+          _end = day;
+        } else if (_start == null || _end != null || day.isBefore(_start!)) {
           // Começa uma seleção nova: primeiro toque, seleção já completa,
           // ou um dia antes da ida (vira a nova ida).
           _start = day;
@@ -78,7 +142,9 @@ class _DateRangeDialogState extends State<_DateRangeDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final nights = _start != null && _end != null ? _end!.difference(_start!).inDays : null;
+    final nights = !widget.single && _start != null && _end != null
+        ? _end!.difference(_start!).inDays
+        : null;
 
     return Dialog(
       clipBehavior: Clip.antiAlias,
@@ -93,13 +159,22 @@ class _DateRangeDialogState extends State<_DateRangeDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _Header(title: widget.title, start: _start, end: _end, nights: nights),
+            widget.single
+                ? _SingleHeader(title: widget.title, date: _start)
+                : _Header(title: widget.title, start: _start, end: _end, nights: nights),
             Padding(
               padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.md, Gap.lg, 0),
               child: _MonthBar(
                 month: _month,
                 onPrev: _canGoBack ? () => _shiftMonth(-1) : null,
                 onNext: _canGoForward ? () => _shiftMonth(1) : null,
+                onToday: _selectable(_today) &&
+                        _month != DateTime(_today.year, _today.month)
+                    ? () => setState(() {
+                          _direction = _month.isAfter(_today) ? -1 : 1;
+                          _month = DateTime(_today.year, _today.month);
+                        })
+                    : null,
               ),
             ),
             Padding(
@@ -123,7 +198,7 @@ class _DateRangeDialogState extends State<_DateRangeDialog> {
                   key: ValueKey(_month),
                   month: _month,
                   today: _today,
-                  lastDay: _lastDay,
+                  isSelectable: _selectable,
                   start: _start,
                   end: _end,
                   onTap: _tap,
@@ -131,7 +206,9 @@ class _DateRangeDialogState extends State<_DateRangeDialog> {
               ),
             ),
             _Footer(
-              canClear: _start != null,
+              // Data única sempre tem uma data: não há o que limpar.
+              canClear: !widget.single && _start != null,
+              showClear: !widget.single,
               canConfirm: _start != null,
               onClear: () => setState(() {
                 _start = null;
@@ -144,6 +221,61 @@ class _DateRangeDialogState extends State<_DateRangeDialog> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Cabeçalho do calendário de data única: o título e a data por extenso,
+/// com o dia da semana.
+class _SingleHeader extends StatelessWidget {
+  const _SingleHeader({required this.title, this.date});
+
+  final String title;
+  final DateTime? date;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = context.isDark;
+    final text = date == null
+        ? '—'
+        : DateFormat("EEEE, d 'de' MMMM 'de' y", 'pt_BR').format(date!);
+    final value = text.isEmpty ? text : text[0].toUpperCase() + text.substring(1);
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(Gap.xl, Gap.xl, Gap.xl, Gap.lg),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: dark
+              ? const [Color(0xFF3A2220), Color(0xFF2E2219)]
+              : const [AppColors.coralSoft, AppColors.sunsetSoft],
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: context.text.labelMedium?.copyWith(color: context.colors.primary)),
+          Gap.vXs,
+          AnimatedSwitcher(
+            duration: Motion.normal,
+            transitionBuilder: (child, a) => FadeTransition(
+              opacity: a,
+              child: SlideTransition(
+                position: Tween(begin: const Offset(0, 0.25), end: Offset.zero).animate(a),
+                child: child,
+              ),
+            ),
+            child: Text(
+              value,
+              key: ValueKey(value),
+              style: context.text.headlineSmall,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -262,11 +394,14 @@ class _DateSlot extends StatelessWidget {
 }
 
 class _MonthBar extends StatelessWidget {
-  const _MonthBar({required this.month, this.onPrev, this.onNext});
+  const _MonthBar({required this.month, this.onPrev, this.onNext, this.onToday});
 
   final DateTime month;
   final VoidCallback? onPrev;
   final VoidCallback? onNext;
+
+  /// Volta para o mês de hoje. Só aparece quando se está em outro mês.
+  final VoidCallback? onToday;
 
   @override
   Widget build(BuildContext context) {
@@ -280,10 +415,46 @@ class _MonthBar extends StatelessWidget {
           icon: const Icon(Icons.chevron_left_rounded),
         ),
         Expanded(
-          child: Text(
-            label[0].toUpperCase() + label.substring(1),
-            textAlign: TextAlign.center,
-            style: context.text.titleMedium,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Flexible(
+                child: Text(
+                  label[0].toUpperCase() + label.substring(1),
+                  textAlign: TextAlign.center,
+                  style: context.text.titleMedium,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              AnimatedSwitcher(
+                duration: Motion.normal,
+                transitionBuilder: (child, a) => ScaleTransition(scale: a, child: child),
+                child: onToday == null
+                    ? const SizedBox.shrink()
+                    : Padding(
+                        padding: const EdgeInsets.only(left: Gap.sm),
+                        child: InkWell(
+                          borderRadius: Radii.brPill,
+                          onTap: onToday,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: Gap.sm, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: context.colors.primaryContainer,
+                              borderRadius: Radii.brPill,
+                            ),
+                            child: Text(
+                              'hoje',
+                              style: context.text.labelSmall?.copyWith(
+                                color: context.colors.primary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+              ),
+            ],
           ),
         ),
         IconButton(
@@ -302,7 +473,7 @@ class _MonthGrid extends StatelessWidget {
     super.key,
     required this.month,
     required this.today,
-    required this.lastDay,
+    required this.isSelectable,
     required this.start,
     required this.end,
     required this.onTap,
@@ -310,7 +481,7 @@ class _MonthGrid extends StatelessWidget {
 
   final DateTime month;
   final DateTime today;
-  final DateTime lastDay;
+  final bool Function(DateTime day) isSelectable;
   final DateTime? start;
   final DateTime? end;
   final ValueChanged<DateTime> onTap;
@@ -357,7 +528,7 @@ class _MonthGrid extends StatelessWidget {
                       return _DayCell(
                         day: day,
                         today: today,
-                        enabled: !day.isBefore(today) && !day.isAfter(lastDay),
+                        enabled: isSelectable(day),
                         start: start,
                         end: end,
                         onTap: onTap,
@@ -483,12 +654,14 @@ class _DayCellState extends State<_DayCell> {
 class _Footer extends StatelessWidget {
   const _Footer({
     required this.canClear,
+    required this.showClear,
     required this.canConfirm,
     required this.onClear,
     required this.onConfirm,
   });
 
   final bool canClear;
+  final bool showClear;
   final bool canConfirm;
   final VoidCallback onClear;
   final VoidCallback onConfirm;
@@ -499,11 +672,12 @@ class _Footer extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.sm, Gap.lg, Gap.lg),
       child: Row(
         children: [
-          IconButton(
-            tooltip: 'Limpar',
-            onPressed: canClear ? onClear : null,
-            icon: const Icon(Icons.restart_alt_rounded, size: 20),
-          ),
+          if (showClear)
+            IconButton(
+              tooltip: 'Limpar',
+              onPressed: canClear ? onClear : null,
+              icon: const Icon(Icons.restart_alt_rounded, size: 20),
+            ),
           const Spacer(),
           Flexible(
             child: TextButton(

@@ -52,4 +52,56 @@ void main() {
     await tapAndStep('22');
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('data única aceita o passado, mas não fora do limite', (tester) async {
+    tester.view.physicalSize = const Size(1200, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    // Um intervalo fixo, no passado, para o teste não depender de hoje:
+    // de 5 a 20 de março de 2024.
+    DateTime? result;
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('pt', 'BR'),
+        supportedLocales: const [Locale('pt', 'BR')],
+        localizationsDelegates: const [
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        home: Builder(
+          builder: (context) => TextButton(
+            onPressed: () async => result = await showAppDatePicker(
+              context,
+              initialDate: DateTime(2024, 3, 10),
+              firstDate: DateTime(2024, 3, 5),
+              lastDate: DateTime(2024, 3, 20),
+            ),
+            child: const Text('abrir'),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('abrir'));
+    await tester.pumpAndSettle();
+
+    // Abre no mês da data inicial e não deixa sair dele.
+    expect(find.text('Março de 2024'), findsOneWidget);
+    for (final icon in [Icons.chevron_left_rounded, Icons.chevron_right_rounded]) {
+      expect(tester.widget<IconButton>(find.widgetWithIcon(IconButton, icon)).onPressed, isNull);
+    }
+
+    // Fora do limite: não muda a seleção.
+    await tester.tap(find.text('2'));
+    await tester.pumpAndSettle();
+    expect(find.text('Domingo, 10 de março de 2024'), findsOneWidget);
+
+    // Dentro do limite, mesmo no passado: escolhe.
+    await tester.tap(find.text('15'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Confirmar'));
+    await tester.pumpAndSettle();
+    expect(result, DateTime(2024, 3, 15));
+  });
 }
